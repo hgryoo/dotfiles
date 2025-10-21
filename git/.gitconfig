@@ -1,0 +1,15 @@
+[user]
+    name = Hyung-Gyu Ryoo
+    email = hgryoo@cubrid.com 
+[core]
+    editor = vim
+[color]
+    ui = auto
+[alias]
+    st = status
+    co = checkout
+    br = branch
+    cm = commit
+    df = diff
+    lg = log --graph --pretty=format:'%C(yellow)%h%Creset %Cgreen%cd%Creset %C(bold blue)%an%Creset %C(auto)%d%Creset %s' --abbrev-commit --date=short
+

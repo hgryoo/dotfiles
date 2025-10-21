@@ -1,0 +1,21 @@
+# hgryoo's dotfiles
+
+```
+~/.dotfiles/
+├── install.sh
+├── bash/
+│   ├── .bashrc
+│   ├── .bash_aliases
+│   └── .bash_exports
+├── vim/
+│   ├── .vimrc
+│   └── colors/
+├── git/
+│   └── .gitconfig
+├── python/
+│   └── requirements.txt
+├── rust/
+│   └── setup_rust_env.sh
+└── cubrid/
+    └── setup_cubrid_env.sh
+```
