@@ -9,8 +9,7 @@ fi
 
 PRESET=$1
 BUILD_DIR=build_preset_$PRESET
-INSTALL_DIR=install.out
 
 cmake --preset "$PRESET" && \
-cmake --build --preset "$PRESET" -j$(nproc) && \
+cmake --build --preset "$PRESET" -j"$(nproc)" && \
 cmake --install "$BUILD_DIR"

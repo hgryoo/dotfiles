@@ -41,10 +41,13 @@ use-cubrid() {
   fi
 
   # Strip any existing CUBRID entries from PATH and LD_LIBRARY_PATH
-  # to prevent accumulation when switching between versions
+  # to prevent accumulation when switching between versions.
+  # Uses -F (fixed-string) to avoid regex metacharacter issues in paths.
   if [ -n "${CUBRID:-}" ]; then
-    PATH=$(echo "$PATH" | tr ':' '\n' | grep -v "$CUBRID" | paste -sd ':')
-    LD_LIBRARY_PATH=$(echo "${LD_LIBRARY_PATH:-}" | tr ':' '\n' | grep -v "$CUBRID" | paste -sd ':')
+    PATH=$(echo "$PATH" | tr ':' '\n' | grep -Fv "$CUBRID" | paste -sd ':' || true)
+    LD_LIBRARY_PATH=$(echo "${LD_LIBRARY_PATH:-}" | tr ':' '\n' | grep -Fv "$CUBRID" | paste -sd ':' || true)
+    # Ensure we don't end up with an empty PATH which would expose CWD
+    PATH="${PATH:-/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin}"
   fi
 
   export CUBRID="$cubrid_path"
