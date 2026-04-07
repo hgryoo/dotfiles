@@ -1,39 +1,349 @@
 #!/usr/bin/env bash
-set -e
+# install.sh — Package installer for hgryoo/dotfiles
+# Supports Ubuntu (apt) and Rocky Linux 9 (dnf).
+# Run after chezmoi apply — managed configs must already be in place.
+set -euo pipefail
 
-DOTFILES=$HOME/.dotfiles
+# ---------------------------------------------------------------------------
+# OS detection
+# ---------------------------------------------------------------------------
+detect_os() {
+  if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    OS_ID="${ID}"
+  else
+    echo "ERROR: /etc/os-release not found — cannot detect OS." >&2
+    exit 1
+  fi
+}
 
-echo ">>> Create symbolic link..."
-ln -sf ~/dotfiles ~/.dotfiles
+# ---------------------------------------------------------------------------
+# Ubuntu: base packages
+# ---------------------------------------------------------------------------
+install_base_ubuntu() {
+  echo ">>> [Ubuntu] Updating package index..."
+  sudo apt-get update -y
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    curl wget git build-essential \
+    libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev \
+    libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev \
+    libffi-dev liblzma-dev \
+    software-properties-common apt-transport-https ca-certificates \
+    jq htop unzip zip
+}
 
-echo ">>> Installing base packages..."
-sudo apt-get update -y
-sudo apt-get install -y curl git build-essential libssl-dev zlib1g-dev \
-     libbz2-dev libreadline-dev libsqlite3-dev wget llvm \
-     libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev
+# ---------------------------------------------------------------------------
+# Rocky Linux 9: base packages
+# ---------------------------------------------------------------------------
+install_base_rocky() {
+  echo ">>> [Rocky] Updating package index..."
+  sudo dnf update -y
+  # Enable EPEL and CRB (needed for many dev packages)
+  sudo dnf install -y epel-release
+  sudo dnf config-manager --set-enabled crb 2>/dev/null || true
+  sudo dnf install -y \
+    curl wget git \
+    openssl-devel zlib-devel bzip2-devel readline-devel sqlite-devel \
+    ncurses-devel xz-devel libffi-devel \
+    ca-certificates unzip zip \
+    jq htop
+}
 
-echo ">>> Linking dotfiles..."
-ln -sf $DOTFILES/bash/.bashrc ~/.bashrc
-ln -sf $DOTFILES/vim/.vimrc ~/.vimrc
-ln -sf $DOTFILES/git/.gitconfig ~/.gitconfig
+# ---------------------------------------------------------------------------
+# Ubuntu: CUBRID build dependencies
+# (ports cubrid/setup_cubrid_env.sh with Rocky support added alongside)
+# ---------------------------------------------------------------------------
+install_cubrid_build_deps_ubuntu() {
+  echo ">>> [Ubuntu] Installing CUBRID build dependencies..."
 
-echo ">>> Installing oh-my-bash..."
-bash -c "$(wget https://raw.githubusercontent.com/ohmybash/oh-my-bash/master/tools/install.sh -O -)"
+  sudo apt-get install -y tzdata
+  sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
+  sudo apt-get update -y
 
-echo ">>> Installing Python 3.12 via pyenv..."
-if ! command -v pyenv &>/dev/null; then
-  curl https://pyenv.run | bash
-  export PATH="$HOME/.pyenv/bin:$PATH"
-  eval "$(pyenv init -)"
-  pyenv install 3.12.5
-  pyenv global 3.12.5
-fi
+  # Essential build tools
+  sudo apt-get install -y --no-install-recommends \
+    build-essential \
+    wget git curl cmake ninja-build flex bison m4 \
+    pkg-config unzip libtool autoconf automake rpm \
+    systemtap systemtap-sdt-dev libelf-dev \
+    ncurses-dev openjdk-8-jdk
 
-echo ">>> Installing Rust environment..."
-bash $DOTFILES/rust/setup_rust_env.sh
+  # GCC 10 toolchain
+  sudo apt-get install -y --no-install-recommends gcc-10 g++-10
+  sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 100
+  sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-10 100
 
-echo ">>> Installing dev tools for CUBRID..."
-sudo bash $DOTFILES/cubrid/setup_cubrid_env.sh
+  echo "GCC: $(gcc --version | head -n1)"
 
-echo "✅ All environments installed successfully!"
+  _install_cmake_from_source
+  _install_ninja_from_source
+  _install_bison_from_source
+}
 
+# ---------------------------------------------------------------------------
+# Rocky Linux 9: CUBRID build dependencies
+# ---------------------------------------------------------------------------
+install_cubrid_build_deps_rocky() {
+  echo ">>> [Rocky] Installing CUBRID build dependencies..."
+
+  sudo dnf groupinstall -y "Development Tools"
+  sudo dnf install -y \
+    wget git curl flex bison m4 \
+    pkg-config libtool autoconf automake rpm-build \
+    systemtap systemtap-sdt-devel elfutils-libelf-devel \
+    ncurses-devel java-1.8.0-openjdk-devel
+
+  # GCC toolset 10 (from AppStream/CRB on Rocky 9)
+  if sudo dnf install -y gcc-toolset-10 gcc-toolset-10-gcc gcc-toolset-10-gcc-c++ 2>/dev/null; then
+    echo ">>> gcc-toolset-10 installed. Enable with: scl enable gcc-toolset-10 bash"
+    echo ">>> Or add to shell: source /opt/rh/gcc-toolset-10/enable"
+  else
+    echo "WARNING: gcc-toolset-10 unavailable on this Rocky version — using system GCC ($(gcc --version | head -n1))"
+  fi
+
+  _install_cmake_from_source
+  _install_ninja_from_source
+  _install_bison_from_source
+}
+
+# ---------------------------------------------------------------------------
+# Shared: CMake 3.26.3 from source (if not already installed)
+# ---------------------------------------------------------------------------
+_install_cmake_from_source() {
+  local CMAKE_VERSION=3.26.3
+  if cmake --version 2>/dev/null | grep -q "$CMAKE_VERSION"; then
+    echo ">>> CMake $CMAKE_VERSION already installed, skipping."
+    return
+  fi
+  echo ">>> Installing CMake $CMAKE_VERSION ..."
+  curl -L "https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-linux-x86_64.tar.gz" \
+    | sudo tar xzf - -C /usr --strip-components=1
+  echo "CMake: $(cmake --version | head -n1)"
+}
+
+# ---------------------------------------------------------------------------
+# Shared: Ninja 1.11.1 from source (if not already installed)
+# ---------------------------------------------------------------------------
+_install_ninja_from_source() {
+  local NINJA_VERSION=1.11.1
+  if ninja --version 2>/dev/null | grep -q "$NINJA_VERSION"; then
+    echo ">>> Ninja $NINJA_VERSION already installed, skipping."
+    return
+  fi
+  echo ">>> Installing Ninja $NINJA_VERSION ..."
+  local tmpdir
+  tmpdir=$(mktemp -d)
+  trap "rm -rf $tmpdir" RETURN
+  curl -L "https://github.com/ninja-build/ninja/archive/refs/tags/v${NINJA_VERSION}.tar.gz" \
+    | tar xzf - -C "$tmpdir" --strip-components=1
+  cmake -S "$tmpdir" -B "$tmpdir/build"
+  cmake --build "$tmpdir/build"
+  sudo mv "$tmpdir/build/ninja" /usr/local/bin/ninja
+  echo "Ninja: $(ninja --version)"
+}
+
+# ---------------------------------------------------------------------------
+# Shared: Bison 3.8.2 from source (if not already installed)
+# ---------------------------------------------------------------------------
+_install_bison_from_source() {
+  local BISON_VERSION=3.8.2
+  if bison --version 2>/dev/null | grep -q "$BISON_VERSION"; then
+    echo ">>> Bison $BISON_VERSION already installed, skipping."
+    return
+  fi
+  echo ">>> Installing Bison $BISON_VERSION ..."
+  local tmpdir
+  tmpdir=$(mktemp -d)
+  trap "rm -rf $tmpdir" RETURN
+  curl -L "https://ftp.gnu.org/gnu/bison/bison-${BISON_VERSION}.tar.gz" \
+    | tar xzf - -C "$tmpdir" --strip-components=1
+  (cd "$tmpdir" && ./configure --prefix=/usr/local && make -j"$(nproc)" && sudo make install)
+  echo "Bison: $(bison --version | head -n1)"
+}
+
+# ---------------------------------------------------------------------------
+# uv (Python package/project manager — replaces pyenv)
+# ---------------------------------------------------------------------------
+install_uv() {
+  if command -v uv &>/dev/null; then
+    echo ">>> uv already installed ($(uv --version)), skipping."
+    return
+  fi
+  echo ">>> Installing uv..."
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+}
+
+# ---------------------------------------------------------------------------
+# Rust (rustup)
+# ---------------------------------------------------------------------------
+install_rust() {
+  if command -v rustup &>/dev/null; then
+    echo ">>> Rust already installed ($(rustc --version)), updating..."
+    rustup update
+    return
+  fi
+  echo ">>> Installing Rust via rustup..."
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path
+}
+
+# ---------------------------------------------------------------------------
+# oh-my-bash
+# ---------------------------------------------------------------------------
+install_ohmybash() {
+  if [ -d "$HOME/.oh-my-bash" ]; then
+    echo ">>> oh-my-bash already installed, skipping."
+    return
+  fi
+  echo ">>> Installing oh-my-bash..."
+  bash -c "$(curl -fsSL https://raw.githubusercontent.com/ohmybash/oh-my-bash/master/tools/install.sh)" \
+    --unattended
+}
+
+# ---------------------------------------------------------------------------
+# Neovim
+# ---------------------------------------------------------------------------
+install_neovim() {
+  if command -v nvim &>/dev/null; then
+    echo ">>> Neovim already installed ($(nvim --version | head -n1)), skipping."
+    return
+  fi
+  echo ">>> Installing Neovim..."
+  case "$OS_ID" in
+    ubuntu)
+      sudo add-apt-repository ppa:neovim-ppa/stable -y
+      sudo apt-get update -y
+      sudo apt-get install -y neovim
+      ;;
+    rocky)
+      sudo dnf install -y neovim
+      ;;
+  esac
+}
+
+# ---------------------------------------------------------------------------
+# direnv
+# ---------------------------------------------------------------------------
+install_direnv() {
+  if command -v direnv &>/dev/null; then
+    echo ">>> direnv already installed ($(direnv --version)), skipping."
+    return
+  fi
+  echo ">>> Installing direnv..."
+  case "$OS_ID" in
+    ubuntu) sudo apt-get install -y direnv ;;
+    rocky)  sudo dnf install -y direnv ;;
+  esac
+}
+
+# ---------------------------------------------------------------------------
+# fzf
+# ---------------------------------------------------------------------------
+install_fzf() {
+  if command -v fzf &>/dev/null; then
+    echo ">>> fzf already installed, skipping."
+    return
+  fi
+  echo ">>> Installing fzf..."
+  case "$OS_ID" in
+    ubuntu) sudo apt-get install -y fzf ;;
+    rocky)  sudo dnf install -y fzf ;;
+  esac
+}
+
+# ---------------------------------------------------------------------------
+# just (command runner) — via pre-built binary
+# ---------------------------------------------------------------------------
+install_just() {
+  if command -v just &>/dev/null; then
+    echo ">>> just already installed ($(just --version)), skipping."
+    return
+  fi
+  echo ">>> Installing just..."
+  curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh \
+    | bash -s -- --to "$HOME/.local/bin"
+}
+
+# ---------------------------------------------------------------------------
+# gh (GitHub CLI)
+# ---------------------------------------------------------------------------
+install_gh() {
+  if command -v gh &>/dev/null; then
+    echo ">>> gh already installed ($(gh --version | head -n1)), skipping."
+    return
+  fi
+  echo ">>> Installing GitHub CLI..."
+  case "$OS_ID" in
+    ubuntu)
+      curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+        | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+      echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
+        | sudo tee /etc/apt/sources.list.d/github-cli.list >/dev/null
+      sudo apt-get update -y && sudo apt-get install -y gh
+      ;;
+    rocky)
+      sudo dnf install -y 'dnf-command(config-manager)' 2>/dev/null || true
+      sudo dnf config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo
+      sudo dnf install -y gh
+      ;;
+  esac
+}
+
+# ---------------------------------------------------------------------------
+# Summary
+# ---------------------------------------------------------------------------
+print_summary() {
+  echo
+  echo "============================================================"
+  echo " Install summary"
+  echo "============================================================"
+  command -v gcc    &>/dev/null && echo "GCC    : $(gcc --version | head -n1)"   || echo "GCC    : not found"
+  command -v cmake  &>/dev/null && echo "CMake  : $(cmake --version | head -n1)" || echo "CMake  : not found"
+  command -v ninja  &>/dev/null && echo "Ninja  : $(ninja --version)"             || echo "Ninja  : not found"
+  command -v bison  &>/dev/null && echo "Bison  : $(bison --version | head -n1)" || echo "Bison  : not found"
+  command -v java   &>/dev/null && echo "Java   : $(java -version 2>&1 | head -n1)" || echo "Java   : not found"
+  command -v uv     &>/dev/null && echo "uv     : $(uv --version)"                || echo "uv     : not found"
+  command -v rustc  &>/dev/null && echo "Rust   : $(rustc --version)"             || echo "Rust   : not found"
+  command -v nvim   &>/dev/null && echo "Neovim : $(nvim --version | head -n1)"  || echo "Neovim : not found"
+  command -v direnv &>/dev/null && echo "direnv : $(direnv --version)"            || echo "direnv : not found"
+  command -v fzf    &>/dev/null && echo "fzf    : $(fzf --version)"               || echo "fzf    : not found"
+  command -v just   &>/dev/null && echo "just   : $(just --version)"              || echo "just   : not found"
+  command -v gh     &>/dev/null && echo "gh     : $(gh --version | head -n1)"    || echo "gh     : not found"
+  echo "============================================================"
+  echo "Done! Run 'source ~/.bashrc' to reload your shell."
+}
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+main() {
+  detect_os
+  echo ">>> Detected OS: $OS_ID"
+
+  case "$OS_ID" in
+    ubuntu)
+      install_base_ubuntu
+      install_cubrid_build_deps_ubuntu
+      ;;
+    rocky)
+      install_base_rocky
+      install_cubrid_build_deps_rocky
+      ;;
+    *)
+      echo "ERROR: Unsupported OS '$OS_ID'. Supported: ubuntu, rocky." >&2
+      exit 1
+      ;;
+  esac
+
+  install_uv
+  install_rust
+  install_ohmybash
+  install_neovim
+  install_direnv
+  install_fzf
+  install_just
+  install_gh
+
+  print_summary
+}
+
+main "$@"

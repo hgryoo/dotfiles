@@ -1,0 +1,6 @@
+sourceDir = {{ .chezmoi.sourceDir | quote }}
+
+{{- $email := promptStringOnce . "email" "Git email address" }}
+
+[data]
+    email = {{ $email | quote }}

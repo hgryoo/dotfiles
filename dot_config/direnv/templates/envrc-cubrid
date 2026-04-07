@@ -1,0 +1,12 @@
+# CUBRID worktree environment
+# Usage: Copy this file to your CUBRID worktree root as .envrc, then run:
+#   direnv allow
+#
+# Adjust CUBRID_PATH to match this worktree's install output directory.
+
+CUBRID_PATH="${PWD}/install.out"
+
+export CUBRID="$CUBRID_PATH"
+export CUBRID_DATABASES="$CUBRID/databases"
+export LD_LIBRARY_PATH="$CUBRID/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export PATH="$CUBRID/bin:$PATH"
