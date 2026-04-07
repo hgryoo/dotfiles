@@ -4,6 +4,7 @@ README
 README.md
 LICENSE
 .chezmoiignore
+.gitignore
 .git
 .git/**
 .claude
