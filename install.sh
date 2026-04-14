@@ -196,7 +196,7 @@ install_claude_code() {
     echo ">>> Claude Code already installed ($(claude --version | head -n1)), skipping."
   else
     echo ">>> Installing Claude Code..."
-    curl -fsSL https://code.claude.ai/install.sh | sh
+    curl -fsSL https://claude.ai/install.sh | bash
     export PATH="$HOME/.local/bin:$PATH"
   fi
 
