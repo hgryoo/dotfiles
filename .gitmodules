@@ -1,0 +1,6 @@
+[submodule "cubrid/tools/cubrid-jira-fetcher"]
+	path = cubrid/tools/cubrid-jira-fetcher
+	url = https://github.com/vimkim/cubrid-jira-fetcher
+[submodule "cubrid/tools/my-cubrid-skills"]
+	path = cubrid/tools/my-cubrid-skills
+	url = https://github.com/vimkim/my-cubrid-skills
