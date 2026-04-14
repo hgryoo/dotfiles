@@ -316,6 +316,87 @@ install_just() {
 }
 
 # ---------------------------------------------------------------------------
+# CUBRID tools (cubrid-jira-fetcher + my-cubrid-skills)
+# ---------------------------------------------------------------------------
+install_cubrid_tools() {
+  local script_dir
+  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+  # Initialize submodules
+  echo ">>> Initializing CUBRID tools submodules..."
+  git -C "$script_dir" submodule update --init --recursive \
+    cubrid/tools/cubrid-jira-fetcher \
+    cubrid/tools/my-cubrid-skills
+
+  # pandoc (required by cubrid-jira-fetcher)
+  if command -v pandoc &>/dev/null; then
+    echo ">>> pandoc already installed ($(pandoc --version | head -n1)), skipping."
+  else
+    echo ">>> Installing pandoc..."
+    case "$OS_ID" in
+      ubuntu) sudo apt-get install -y pandoc ;;
+      rocky)  sudo dnf install -y pandoc ;;
+    esac
+  fi
+
+  # my-cubrid-skills — Claude Code skill pack (global)
+  if npx skills list 2>/dev/null | grep -q "my-cubrid-skills"; then
+    echo ">>> my-cubrid-skills already installed, skipping."
+  elif command -v npx &>/dev/null; then
+    echo ">>> Installing my-cubrid-skills..."
+    npx skills add vimkim/my-cubrid-skills -y -g
+  else
+    echo ">>> npx not found — skipping my-cubrid-skills."
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# markitdown (Microsoft — file-to-Markdown converter)
+# ---------------------------------------------------------------------------
+install_markitdown() {
+  if command -v markitdown &>/dev/null; then
+    echo ">>> markitdown already installed, skipping."
+    return
+  fi
+  echo ">>> Installing markitdown..."
+  uv tool install 'markitdown[all]'
+}
+
+# ---------------------------------------------------------------------------
+# lazydiff (TUI diff viewer — Rust)
+# ---------------------------------------------------------------------------
+install_lazydiff() {
+  if command -v lazydiff &>/dev/null; then
+    echo ">>> lazydiff already installed, skipping."
+    return
+  fi
+  echo ">>> Installing lazydiff..."
+  cargo install lazydiff
+}
+
+# ---------------------------------------------------------------------------
+# lazygit (TUI for git)
+# ---------------------------------------------------------------------------
+install_lazygit() {
+  if command -v lazygit &>/dev/null; then
+    echo ">>> lazygit already installed ($(lazygit --version | head -n1)), skipping."
+    return
+  fi
+  echo ">>> Installing lazygit..."
+  local version
+  version=$(curl -s https://api.github.com/repos/jesseduffield/lazygit/releases/latest \
+    | grep '"tag_name"' | sed -E 's/.*"v([^"]+)".*/\1/')
+  local tmpdir
+  tmpdir=$(mktemp -d)
+  trap "rm -rf $tmpdir" RETURN
+  curl -Lo "$tmpdir/lazygit.tar.gz" \
+    "https://github.com/jesseduffield/lazygit/releases/latest/download/lazygit_${version}_Linux_x86_64.tar.gz"
+  tar xf "$tmpdir/lazygit.tar.gz" -C "$tmpdir" lazygit
+  sudo install "$tmpdir/lazygit" /usr/local/bin/lazygit
+  echo "lazygit: $(lazygit --version | head -n1)"
+}
+
+# ---------------------------------------------------------------------------
 # rtk (AI CLI)
 # ---------------------------------------------------------------------------
 install_rtk() {
@@ -373,8 +454,11 @@ print_summary() {
   command -v direnv &>/dev/null && echo "direnv : $(direnv --version)"            || echo "direnv : not found"
   command -v fzf    &>/dev/null && echo "fzf    : $(fzf --version)"               || echo "fzf    : not found"
   command -v just   &>/dev/null && echo "just   : $(just --version)"              || echo "just   : not found"
-  command -v gh     &>/dev/null && echo "gh     : $(gh --version | head -n1)"    || echo "gh     : not found"
-  command -v rtk    &>/dev/null && echo "rtk    : $(rtk --version 2>/dev/null | head -n1)" || echo "rtk    : not found"
+  command -v markitdown &>/dev/null && echo "markitdown: $(markitdown --version 2>/dev/null | head -n1)" || echo "markitdown: not found"
+  command -v lazydiff   &>/dev/null && echo "lazydiff  : installed"                                       || echo "lazydiff  : not found"
+  command -v lazygit    &>/dev/null && echo "lazygit   : $(lazygit --version | head -n1)"                 || echo "lazygit   : not found"
+  command -v gh         &>/dev/null && echo "gh        : $(gh --version | head -n1)"                      || echo "gh        : not found"
+  command -v rtk        &>/dev/null && echo "rtk    : $(rtk --version 2>/dev/null | head -n1)" || echo "rtk    : not found"
   command -v claude &>/dev/null && echo "claude : $(claude --version | head -n1)" || echo "claude : not found"
   command -v omc    &>/dev/null && echo "omc    : $(omc --version 2>/dev/null || echo 'installed')" || echo "omc    : not found"
   echo "============================================================"
@@ -403,8 +487,12 @@ main() {
       ;;
   esac
 
+  install_cubrid_tools
   install_uv
   install_rust
+  install_markitdown
+  install_lazydiff
+  install_lazygit
   install_ohmybash
   install_neovim
   install_direnv
