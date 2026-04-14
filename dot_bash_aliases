@@ -29,14 +29,21 @@ alias ra='cargo audit'
 alias ex='cargo expand'
 
 # CUBRID environment switcher
-# Usage: use-cubrid [/path/to/cubrid/install.out]
-# Defaults to ~/cubrid/install.out if no argument given.
+# Usage: use-cubrid [root_dir] [install_subdir]
+#   root_dir      — root of the CUBRID source tree  (default: ~/cubrid)
+#   install_subdir — install directory name inside root  (default: install.out)
+# Examples:
+#   use-cubrid                          → ~/cubrid/install.out
+#   use-cubrid ~/cubrid-12              → ~/cubrid-12/install.out
+#   use-cubrid ~/cubrid-12 build.out    → ~/cubrid-12/build.out
 # Safe to call multiple times — strips previous CUBRID entries before setting new ones.
 use-cubrid() {
-  local cubrid_path="${1:-$HOME/cubrid/install.out}"
+  local cubrid_root="${1:-$HOME/cubrid}"
+  local install_subdir="${2:-install.out}"
+  local cubrid_path="$cubrid_root/$install_subdir"
 
   if [ ! -d "$cubrid_path" ]; then
-    echo "Error: CUBRID path does not exist: $cubrid_path" >&2
+    echo "Error: CUBRID install dir does not exist: $cubrid_path" >&2
     return 1
   fi
 
