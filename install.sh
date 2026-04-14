@@ -162,6 +162,31 @@ _install_bison_from_source() {
 }
 
 # ---------------------------------------------------------------------------
+# Claude Code + oh-my-claudecode
+# ---------------------------------------------------------------------------
+install_claude_code() {
+  if command -v claude &>/dev/null; then
+    echo ">>> Claude Code already installed ($(claude --version | head -n1)), skipping."
+  else
+    echo ">>> Installing Claude Code..."
+    curl -fsSL https://code.claude.ai/install.sh | sh
+    export PATH="$HOME/.local/bin:$PATH"
+  fi
+
+  # oh-my-claudecode is auto-installed by Claude Code on first run via
+  # extraKnownMarketplaces + enabledPlugins in ~/.claude/settings.json.
+  # Install the omc CLI separately so `omc update` is available outside sessions.
+  if command -v omc &>/dev/null; then
+    echo ">>> omc already installed, skipping."
+  elif command -v npm &>/dev/null; then
+    echo ">>> Installing oh-my-claudecode CLI (omc)..."
+    npm install -g oh-my-claude-sisyphus || echo "WARNING: omc CLI install failed — it will be auto-installed by Claude Code on first run."
+  else
+    echo ">>> npm not found — omc CLI will be auto-installed by Claude Code on first run."
+  fi
+}
+
+# ---------------------------------------------------------------------------
 # uv (Python package/project manager — replaces pyenv)
 # ---------------------------------------------------------------------------
 install_uv() {
@@ -308,6 +333,8 @@ print_summary() {
   command -v fzf    &>/dev/null && echo "fzf    : $(fzf --version)"               || echo "fzf    : not found"
   command -v just   &>/dev/null && echo "just   : $(just --version)"              || echo "just   : not found"
   command -v gh     &>/dev/null && echo "gh     : $(gh --version | head -n1)"    || echo "gh     : not found"
+  command -v claude &>/dev/null && echo "claude : $(claude --version | head -n1)" || echo "claude : not found"
+  command -v omc    &>/dev/null && echo "omc    : $(omc --version 2>/dev/null || echo 'installed')" || echo "omc    : not found"
   echo "============================================================"
   echo "Done! Run 'source ~/.bashrc' to reload your shell."
 }
@@ -342,6 +369,7 @@ main() {
   install_fzf
   install_just
   install_gh
+  install_claude_code
 
   print_summary
 }
