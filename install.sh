@@ -166,7 +166,9 @@ _install_bison_from_source() {
 # Source: dot_claude/karpathy-skills.md (deployed by chezmoi to ~/.claude/)
 # ---------------------------------------------------------------------------
 install_karpathy_skills() {
-  local src="$HOME/.claude/karpathy-skills.md"
+  local script_dir
+  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  local src="$script_dir/dot_claude/karpathy-skills.md"
   local dst="$HOME/.claude/CLAUDE.md"
   local marker="# Andrej Karpathy Skills"
 
@@ -176,10 +178,11 @@ install_karpathy_skills() {
   fi
 
   if [ ! -f "$src" ]; then
-    echo "ERROR: $src not found — run chezmoi apply first." >&2
-    return 1
+    echo "WARNING: $src not found — skipping Karpathy skills." >&2
+    return
   fi
 
+  mkdir -p "$HOME/.claude"
   echo "" >> "$dst"
   cat "$src" >> "$dst"
   echo ">>> Karpathy skills appended to $dst."
