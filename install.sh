@@ -289,6 +289,18 @@ install_just() {
 }
 
 # ---------------------------------------------------------------------------
+# rtk (AI CLI)
+# ---------------------------------------------------------------------------
+install_rtk() {
+  if command -v rtk &>/dev/null; then
+    echo ">>> rtk already installed ($(rtk --version 2>/dev/null | head -n1)), skipping."
+    return
+  fi
+  echo ">>> Installing rtk..."
+  curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh
+}
+
+# ---------------------------------------------------------------------------
 # gh (GitHub CLI)
 # ---------------------------------------------------------------------------
 install_gh() {
@@ -333,6 +345,7 @@ print_summary() {
   command -v fzf    &>/dev/null && echo "fzf    : $(fzf --version)"               || echo "fzf    : not found"
   command -v just   &>/dev/null && echo "just   : $(just --version)"              || echo "just   : not found"
   command -v gh     &>/dev/null && echo "gh     : $(gh --version | head -n1)"    || echo "gh     : not found"
+  command -v rtk    &>/dev/null && echo "rtk    : $(rtk --version 2>/dev/null | head -n1)" || echo "rtk    : not found"
   command -v claude &>/dev/null && echo "claude : $(claude --version | head -n1)" || echo "claude : not found"
   command -v omc    &>/dev/null && echo "omc    : $(omc --version 2>/dev/null || echo 'installed')" || echo "omc    : not found"
   echo "============================================================"
@@ -369,6 +382,7 @@ main() {
   install_fzf
   install_just
   install_gh
+  install_rtk
   install_claude_code
 
   print_summary
