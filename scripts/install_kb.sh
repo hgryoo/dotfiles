@@ -14,15 +14,29 @@ _check_npm() {
 }
 
 # ---------------------------------------------------------------------------
+# Google Cloud CLI (required by gws)
+# ---------------------------------------------------------------------------
+install_gcloud() {
+  if command -v gcloud &>/dev/null; then
+    echo ">>> gcloud already installed, skipping."
+    return
+  fi
+  echo ">>> Installing Google Cloud CLI..."
+  curl https://sdk.cloud.google.com | bash -s -- --disable-prompts --install-dir="$HOME"
+  echo ">>> gcloud installed. Run 'source ~/.bashrc' or restart your shell to use it."
+}
+
+# ---------------------------------------------------------------------------
 # obsidian-cli — official Obsidian CLI
 # ---------------------------------------------------------------------------
 install_obsidian_cli() {
-  if command -v obsidian &>/dev/null; then
-    echo ">>> obsidian-cli already installed ($(obsidian --version 2>/dev/null | head -n1)), skipping."
+  # Check npm global list — 'command -v obsidian' may find the GUI desktop app
+  if npm list -g obsidian-cli &>/dev/null; then
+    echo ">>> obsidian-cli already installed, skipping."
     return
   fi
   echo ">>> Installing obsidian-cli..."
-  npm install -g obsidian-cli
+  npm install -g obsidian-cli --ignore-scripts
 }
 
 # ---------------------------------------------------------------------------
@@ -39,10 +53,16 @@ install_qmd() {
 
 # ---------------------------------------------------------------------------
 # gws — Google Workspace CLI (Drive, Gmail, Calendar, ...)
+# Requires: Google Cloud CLI (gcloud)
 # ---------------------------------------------------------------------------
 install_gws() {
   if command -v gws &>/dev/null; then
     echo ">>> gws already installed, skipping."
+    return
+  fi
+  if ! command -v gcloud &>/dev/null; then
+    echo "WARNING: gcloud not found — gws requires Google Cloud CLI."
+    echo "  Install gcloud first, then re-run."
     return
   fi
   echo ">>> Installing Google Workspace CLI (gws)..."
@@ -81,15 +101,16 @@ print_summary() {
   echo "============================================================"
   echo " KB install summary"
   echo "============================================================"
-  command -v obsidian &>/dev/null && echo "obsidian-cli : $(obsidian --version 2>/dev/null | head -n1)" || echo "obsidian-cli : not found"
+  command -v gcloud   &>/dev/null && echo "gcloud       : installed" || echo "gcloud       : not found"
+  npm list -g obsidian-cli &>/dev/null && echo "obsidian-cli : installed" || echo "obsidian-cli : not found"
   command -v qmd      &>/dev/null && echo "qmd          : installed"                                    || echo "qmd          : not found"
   command -v gws      &>/dev/null && echo "gws          : installed"                                    || echo "gws          : not found"
   echo "============================================================"
   echo "Next steps:"
-  echo "  1. bash auth.sh          — log in to GitHub, Google, rtk"
+  echo "  1. bash scripts/auth.sh          — log in to GitHub, Google"
   echo "  2. gws auth setup        — create Google Cloud project (first time)"
   echo "  3. qmd embed             — generate search embeddings"
-  echo "  4. bash sync_knowledge.sh pull  — pull Obsidian vault to ~/knowledge/"
+  echo "  4. bash scripts/sync_knowledge.sh pull  — pull Obsidian vault to ~/knowledge/"
   echo "============================================================"
 }
 
@@ -98,6 +119,7 @@ print_summary() {
 # ---------------------------------------------------------------------------
 main() {
   _check_npm
+  install_gcloud
   install_obsidian_cli
   install_qmd
   install_gws

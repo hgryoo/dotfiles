@@ -2,7 +2,42 @@
 # install.sh — Package installer for hgryoo/dotfiles
 # Supports Ubuntu (apt) and Rocky Linux 9 (dnf).
 # Run after chezmoi apply — managed configs must already be in place.
+#
+# Usage:
+#   bash install.sh              # base install only
+#   bash install.sh --kb         # include knowledge base tools
+#   bash install.sh --local-llm  # include local LLM tools
+#   bash install.sh --all        # everything
 set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OPT_KB=false
+OPT_LLM=false
+
+usage() {
+  cat <<EOF
+Usage: bash install.sh [OPTIONS]
+
+Options:
+  --kb         Install knowledge base tools (obsidian-cli, qmd, gws, gcloud)
+  --local-llm  Install local LLM tools (ollama, llama.cpp, vLLM, gemma4)
+  --all        Install everything (base + kb + local-llm)
+  -h, --help   Show this help message
+
+Without options, only the base environment is installed.
+EOF
+  exit 0
+}
+
+for arg in "$@"; do
+  case "$arg" in
+    --kb)        OPT_KB=true ;;
+    --local-llm) OPT_LLM=true ;;
+    --all)       OPT_KB=true; OPT_LLM=true ;;
+    -h|--help)   usage ;;
+    *) echo "Unknown option: $arg"; exit 1 ;;
+  esac
+done
 
 # ---------------------------------------------------------------------------
 # OS detection
@@ -166,9 +201,9 @@ _install_bison_from_source() {
 # Source: dot_claude/karpathy-skills.md (deployed by chezmoi to ~/.claude/)
 # ---------------------------------------------------------------------------
 install_karpathy_skills() {
-  local script_dir
-  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  local src="$script_dir/dot_claude/karpathy-skills.md"
+  local repo_root
+  repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  local src="$repo_root/dot_claude/karpathy-skills.md"
   local dst="$HOME/.claude/CLAUDE.md"
   local marker="# Andrej Karpathy Skills"
 
@@ -252,6 +287,21 @@ install_ohmybash() {
 }
 
 # ---------------------------------------------------------------------------
+# Set default shell to bash
+# ---------------------------------------------------------------------------
+set_default_shell_bash() {
+  local current_shell
+  current_shell="$(getent passwd "$(whoami)" | cut -d: -f7)"
+  if [ "$current_shell" = "/bin/bash" ] || [ "$current_shell" = "/usr/bin/bash" ]; then
+    echo ">>> Default shell is already bash, skipping."
+    return
+  fi
+  echo ">>> Changing default shell to bash..."
+  chsh -s "$(command -v bash)"
+  echo ">>> Default shell changed to bash. Log out and back in to take effect."
+}
+
+# ---------------------------------------------------------------------------
 # Neovim
 # ---------------------------------------------------------------------------
 install_neovim() {
@@ -319,12 +369,12 @@ install_just() {
 # CUBRID tools (cubrid-jira-fetcher + my-cubrid-skills)
 # ---------------------------------------------------------------------------
 install_cubrid_tools() {
-  local script_dir
-  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  local repo_root
+  repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
   # Initialize submodules
   echo ">>> Initializing CUBRID tools submodules..."
-  git -C "$script_dir" submodule update --init --recursive \
+  git -C "$repo_root" submodule update --init --recursive \
     cubrid/tools/cubrid-jira-fetcher \
     cubrid/tools/my-cubrid-skills
 
@@ -411,6 +461,18 @@ install_rtk() {
 }
 
 # ---------------------------------------------------------------------------
+# Tailscale
+# ---------------------------------------------------------------------------
+install_tailscale() {
+  if command -v tailscale &>/dev/null; then
+    echo ">>> Tailscale already installed ($(tailscale --version | head -n1)), skipping."
+    return
+  fi
+  echo ">>> Installing Tailscale..."
+  curl -fsSL https://tailscale.com/install.sh | sh
+}
+
+# ---------------------------------------------------------------------------
 # gh (GitHub CLI)
 # ---------------------------------------------------------------------------
 install_gh() {
@@ -457,8 +519,9 @@ print_summary() {
   command -v markitdown &>/dev/null && echo "markitdown: $(markitdown --version 2>/dev/null | head -n1)" || echo "markitdown: not found"
   command -v lazydiff   &>/dev/null && echo "lazydiff  : installed"                                       || echo "lazydiff  : not found"
   command -v lazygit    &>/dev/null && echo "lazygit   : $(lazygit --version | head -n1)"                 || echo "lazygit   : not found"
+  command -v tailscale  &>/dev/null && echo "tailscale : $(tailscale --version | head -n1)"                || echo "tailscale : not found"
   command -v gh         &>/dev/null && echo "gh        : $(gh --version | head -n1)"                      || echo "gh        : not found"
-  command -v rtk        &>/dev/null && echo "rtk    : $(rtk --version 2>/dev/null | head -n1)" || echo "rtk    : not found"
+  command -v rtk        &>/dev/null && echo "rtk       : $(rtk --version 2>/dev/null | head -n1)"         || echo "rtk       : not found"
   command -v claude &>/dev/null && echo "claude : $(claude --version | head -n1)" || echo "claude : not found"
   command -v omc    &>/dev/null && echo "omc    : $(omc --version 2>/dev/null || echo 'installed')" || echo "omc    : not found"
   echo "============================================================"
@@ -494,16 +557,31 @@ main() {
   install_lazydiff
   install_lazygit
   install_ohmybash
+  set_default_shell_bash
   install_neovim
   install_direnv
   install_fzf
   install_just
+  install_tailscale
   install_gh
   install_rtk
   install_karpathy_skills
   install_claude_code
 
+  # Optional modules
+  if $OPT_KB; then
+    echo
+    echo ">>> Installing knowledge base tools..."
+    source "$SCRIPT_DIR/install_kb.sh"
+  fi
+
+  if $OPT_LLM; then
+    echo
+    echo ">>> Installing local LLM tools..."
+    source "$SCRIPT_DIR/install_local_llm.sh"
+  fi
+
   print_summary
 }
 
-main "$@"
+main

@@ -16,6 +16,9 @@ alias cm='cmake -GNinja'
 alias mk='ninja -C build'
 alias cb='cd ~/cubrid'
 
+# AI
+alias claude='claude --dangerously-skip-permissions'
+
 # Python
 alias py='python3'
 

@@ -8,7 +8,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SECRETS_FILE="$SCRIPT_DIR/secrets.env"
+SECRETS_FILE="$SCRIPT_DIR/../secrets.env"
 
 # ---------------------------------------------------------------------------
 # Load secrets
@@ -48,8 +48,16 @@ auth_github() {
 auth_google() {
   echo
   echo "--- Google Workspace (gws) ---"
+  if ! command -v gcloud &>/dev/null; then
+    echo ">>> gcloud not found — installing Google Cloud CLI..."
+    curl https://sdk.cloud.google.com | bash -s -- --disable-prompts --install-dir="$HOME"
+    # Add to PATH for current session
+    if [ -f "$HOME/google-cloud-sdk/path.bash.inc" ]; then
+      source "$HOME/google-cloud-sdk/path.bash.inc"
+    fi
+  fi
   if ! command -v gws &>/dev/null; then
-    echo ">>> gws not found — run install_kb.sh first."
+    echo ">>> gws not found — run bootstrap.sh --kb first."
     return
   fi
   if gws auth status &>/dev/null 2>&1; then
@@ -63,24 +71,6 @@ auth_google() {
     echo ">>> Logging in to Google (using credentials from secrets.env)..."
     gws auth login
   fi
-}
-
-# ---------------------------------------------------------------------------
-# rtk
-# ---------------------------------------------------------------------------
-auth_rtk() {
-  echo
-  echo "--- rtk ---"
-  if ! command -v rtk &>/dev/null; then
-    echo ">>> rtk not found — run install.sh first."
-    return
-  fi
-  if rtk status &>/dev/null 2>&1; then
-    echo ">>> rtk already authenticated."
-    return
-  fi
-  echo ">>> Logging in to rtk..."
-  rtk login
 }
 
 # ---------------------------------------------------------------------------
@@ -111,7 +101,6 @@ print_summary() {
   echo "============================================================"
   gh auth status 2>/dev/null | grep -E "Logged in|account" | head -n2 || echo "GitHub     : not authenticated"
   command -v gws &>/dev/null && { gws auth status 2>/dev/null | head -n1 || echo "Google     : not authenticated"; } || echo "Google (gws): not installed"
-  command -v rtk &>/dev/null && { rtk status 2>/dev/null | head -n1 || echo "rtk        : not authenticated"; } || echo "rtk        : not installed"
   [ -n "${HUGGINGFACE_TOKEN:-}" ] && echo "HuggingFace: token set" || echo "HuggingFace: token not set"
   echo "============================================================"
   echo "Run 'bash setup.sh' to persist env vars to your shell."
@@ -125,7 +114,6 @@ main() {
   load_secrets
   auth_github
   auth_google
-  auth_rtk
   auth_huggingface
   print_summary
 }
