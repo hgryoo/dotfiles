@@ -455,7 +455,8 @@ install_cubrid_tools() {
   fi
 
   # my-cubrid-skills — Claude Code skill pack (global)
-  if npx skills list 2>/dev/null | grep -q "my-cubrid-skills"; then
+  # The pack installs individual skills into ~/.claude/skills/; use one as a marker.
+  if [[ -d "$HOME/.claude/skills/my-cubrid-skills-create" ]]; then
     echo ">>> my-cubrid-skills already installed, skipping."
   elif command -v npx &>/dev/null; then
     echo ">>> Installing my-cubrid-skills..."
