@@ -49,11 +49,15 @@ auth_google() {
   echo
   echo "--- Google Workspace (gws) ---"
   if ! command -v gcloud &>/dev/null; then
-    echo ">>> gcloud not found — installing Google Cloud CLI..."
-    curl https://sdk.cloud.google.com | bash -s -- --disable-prompts --install-dir="$HOME"
-    # Add to PATH for current session
-    if [ -f "$HOME/google-cloud-sdk/path.bash.inc" ]; then
-      source "$HOME/google-cloud-sdk/path.bash.inc"
+    if [ -x "$HOME/google-cloud-sdk/bin/gcloud" ]; then
+      echo ">>> gcloud found at ~/google-cloud-sdk (not on PATH) — sourcing path.bash.inc."
+      # shellcheck source=/dev/null
+      [ -f "$HOME/google-cloud-sdk/path.bash.inc" ] && source "$HOME/google-cloud-sdk/path.bash.inc"
+    else
+      echo ">>> gcloud not found — installing Google Cloud CLI..."
+      curl https://sdk.cloud.google.com | bash -s -- --disable-prompts --install-dir="$HOME"
+      # shellcheck source=/dev/null
+      [ -f "$HOME/google-cloud-sdk/path.bash.inc" ] && source "$HOME/google-cloud-sdk/path.bash.inc"
     fi
   fi
   if ! command -v gws &>/dev/null; then

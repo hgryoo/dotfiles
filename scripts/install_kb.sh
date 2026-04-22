@@ -21,6 +21,11 @@ install_gcloud() {
     echo ">>> gcloud already installed, skipping."
     return
   fi
+  if [ -x "$HOME/google-cloud-sdk/bin/gcloud" ]; then
+    echo ">>> gcloud found at ~/google-cloud-sdk (not on PATH) — skipping install."
+    echo ">>> Run 'source ~/google-cloud-sdk/path.bash.inc' or restart your shell."
+    return
+  fi
   echo ">>> Installing Google Cloud CLI..."
   curl https://sdk.cloud.google.com | bash -s -- --disable-prompts --install-dir="$HOME"
   echo ">>> gcloud installed. Run 'source ~/.bashrc' or restart your shell to use it."

@@ -19,6 +19,7 @@ OPT_SETUP=false
 OPT_AUTH=false
 OPT_KB=false
 OPT_LLM=false
+OPT_GCLOUD_ONLY=false
 
 usage() {
   cat <<EOF
@@ -29,6 +30,7 @@ Options:
   --auth         Run service authentication (GitHub, Google, HuggingFace)
   --kb           Install knowledge base tools (gcloud, obsidian-cli, qmd, gws)
   --local-llm    Install local LLM tools (ollama, llama.cpp, vLLM, gemma4)
+  --gcloud       Install ONLY Google Cloud CLI (skips chezmoi + base install)
   --all          Run everything except local LLM (chezmoi + install + auth + setup + kb)
   --install-only Skip chezmoi apply, run install.sh only
   -h, --help     Show this help message
@@ -55,12 +57,18 @@ for arg in "$@"; do
     --auth)         OPT_AUTH=true ;;
     --kb)           OPT_KB=true ;;
     --local-llm)    OPT_LLM=true ;;
+    --gcloud)       OPT_GCLOUD_ONLY=true ;;
     --all)          OPT_SETUP=true; OPT_AUTH=true; OPT_KB=true ;;
     --install-only) OPT_CHEZMOI=false ;;
     -h|--help)      usage ;;
     *) echo "Unknown option: $arg"; echo; usage ;;
   esac
 done
+
+if $OPT_GCLOUD_ONLY; then
+  bash "$DOTFILES_DIR/scripts/install.sh" --gcloud
+  exit 0
+fi
 
 # ---------------------------------------------------------------------------
 # Show what will run

@@ -13,6 +13,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OPT_KB=false
 OPT_LLM=false
+OPT_GCLOUD_ONLY=false
 
 usage() {
   cat <<EOF
@@ -21,6 +22,7 @@ Usage: bash install.sh [OPTIONS]
 Options:
   --kb         Install knowledge base tools (obsidian-cli, qmd, gws, gcloud)
   --local-llm  Install local LLM tools (ollama, llama.cpp, vLLM, gemma4)
+  --gcloud     Install ONLY Google Cloud CLI (no base, no kb bundle)
   --all        Install everything (base + kb + local-llm)
   -h, --help   Show this help message
 
@@ -31,13 +33,34 @@ EOF
 
 for arg in "$@"; do
   case "$arg" in
-    --kb)        OPT_KB=true ;;
-    --local-llm) OPT_LLM=true ;;
-    --all)       OPT_KB=true; OPT_LLM=true ;;
-    -h|--help)   usage ;;
+    --kb)         OPT_KB=true ;;
+    --local-llm)  OPT_LLM=true ;;
+    --gcloud)     OPT_GCLOUD_ONLY=true ;;
+    --all)        OPT_KB=true; OPT_LLM=true ;;
+    -h|--help)    usage ;;
     *) echo "Unknown option: $arg"; exit 1 ;;
   esac
 done
+
+install_gcloud() {
+  if command -v gcloud &>/dev/null; then
+    echo ">>> gcloud already installed ($(gcloud --version | head -n1)), skipping."
+    return
+  fi
+  if [ -x "$HOME/google-cloud-sdk/bin/gcloud" ]; then
+    echo ">>> gcloud found at ~/google-cloud-sdk (not on PATH) — skipping install."
+    echo ">>> Run 'source ~/google-cloud-sdk/path.bash.inc' or restart your shell."
+    return
+  fi
+  echo ">>> Installing Google Cloud CLI..."
+  curl https://sdk.cloud.google.com | bash -s -- --disable-prompts --install-dir="$HOME"
+  echo ">>> gcloud installed. Run 'source ~/.bashrc' or restart your shell to use it."
+}
+
+if $OPT_GCLOUD_ONLY; then
+  install_gcloud
+  exit 0
+fi
 
 # ---------------------------------------------------------------------------
 # OS detection
