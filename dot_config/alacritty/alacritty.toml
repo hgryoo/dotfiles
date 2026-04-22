@@ -1,0 +1,151 @@
+# Alacritty configuration — managed by chezmoi
+# Key bindings inspired by https://johngrib.github.io/wiki/tool/alacritty/
+# Linux has no Command key, so we use Control as the modifier.
+#
+# Each binding sends the tmux prefix (C-q = \u0011) plus a command char,
+# so tmux must be configured with:
+#     set -g prefix C-q
+#     bind-key C-q send-prefix
+
+[window]
+dynamic_padding = true
+decorations = "full"
+opacity = 1.0
+
+[window.padding]
+x = 8
+y = 8
+
+[font]
+size = 12.0
+
+[scrolling]
+history = 10000
+
+[selection]
+save_to_clipboard = true
+
+# ---------------------------------------------------------------------------
+# Keyboard bindings — \u0011 is Ctrl-Q, the tmux prefix.
+# ---------------------------------------------------------------------------
+
+# New tab (tmux: new-window)
+[[keyboard.bindings]]
+key = "T"
+mods = "Control"
+chars = "\u0011c"
+
+# Close tab (tmux: kill-window with confirmation)
+[[keyboard.bindings]]
+key = "W"
+mods = "Control"
+chars = "\u0011X"
+
+# Horizontal split (tmux: split-window -h → `%`)
+[[keyboard.bindings]]
+key = "D"
+mods = "Control"
+chars = "\u0011%"
+
+# Vertical split (tmux: split-window -v → `\"`)
+[[keyboard.bindings]]
+key = "D"
+mods = "Control|Shift"
+chars = "\u0011\""
+
+# Cycle panes (tmux: `o`)
+[[keyboard.bindings]]
+key = "O"
+mods = "Control"
+chars = "\u0011o"
+
+# Swap panes (tmux: C-o → \u000f)
+[[keyboard.bindings]]
+key = "O"
+mods = "Control|Shift"
+chars = "\u0011\u000f"
+
+# Resize panes (tmux: H/J/K/L — requires `bind -r` in tmux for repeat)
+[[keyboard.bindings]]
+key = "Left"
+mods = "Control"
+chars = "\u0011H"
+
+[[keyboard.bindings]]
+key = "Right"
+mods = "Control"
+chars = "\u0011L"
+
+[[keyboard.bindings]]
+key = "Up"
+mods = "Control"
+chars = "\u0011K"
+
+[[keyboard.bindings]]
+key = "Down"
+mods = "Control"
+chars = "\u0011J"
+
+# Tab list / window chooser (tmux: `w`)
+[[keyboard.bindings]]
+key = "E"
+mods = "Control"
+chars = "\u0011w"
+
+# Move tab left  (tmux: C-h → \u0008)
+[[keyboard.bindings]]
+key = "Comma"
+mods = "Control|Shift"
+chars = "\u0011\u0008"
+
+# Move tab right (tmux: C-l → \u000c)
+[[keyboard.bindings]]
+key = "Period"
+mods = "Control|Shift"
+chars = "\u0011\u000c"
+
+# Jump to tab 1..9 (tmux: select-window -t N)
+[[keyboard.bindings]]
+key = "1"
+mods = "Control"
+chars = "\u00111"
+
+[[keyboard.bindings]]
+key = "2"
+mods = "Control"
+chars = "\u00112"
+
+[[keyboard.bindings]]
+key = "3"
+mods = "Control"
+chars = "\u00113"
+
+[[keyboard.bindings]]
+key = "4"
+mods = "Control"
+chars = "\u00114"
+
+[[keyboard.bindings]]
+key = "5"
+mods = "Control"
+chars = "\u00115"
+
+[[keyboard.bindings]]
+key = "6"
+mods = "Control"
+chars = "\u00116"
+
+[[keyboard.bindings]]
+key = "7"
+mods = "Control"
+chars = "\u00117"
+
+[[keyboard.bindings]]
+key = "8"
+mods = "Control"
+chars = "\u00118"
+
+[[keyboard.bindings]]
+key = "9"
+mods = "Control"
+chars = "\u00119"

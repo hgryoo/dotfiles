@@ -40,10 +40,5 @@ fi
 # ~/bin on PATH
 export PATH="$HOME/bin:$PATH"
 
-{{ if stat (joinPath .chezmoi.homeDir ".cursor" "bin") -}}
-# Cursor IDE
-export PATH="$HOME/.cursor/bin:$PATH"
-
-{{ end -}}
 # Editor defaults
 export EDITOR="vim"

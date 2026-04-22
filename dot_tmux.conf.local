@@ -1,0 +1,51 @@
+# ~/.tmux.conf.local — sourced by oh-my-tmux (gpakosz/.tmux).
+# Overrides & additions layered on top of ~/.tmux/.tmux.conf.
+# Works standalone as well: you can also `source-file` this directly.
+
+# --- Prefix → C-q (to pair with alacritty Ctrl+<key> bindings) --------------
+set -gu prefix2
+unbind C-a
+unbind C-b
+set -g prefix C-q
+bind C-q send-prefix
+
+# --- Splits: intuitive `|` / `-` (divider shape matches the key) ------------
+# Unbind the cryptic defaults to avoid muscle-memory collisions.
+unbind '"'
+unbind %
+bind | split-window -h -c "#{pane_current_path}"   # vertical divider (side-by-side)
+bind - split-window -v -c "#{pane_current_path}"   # horizontal divider (top/bottom)
+bind c new-window -c "#{pane_current_path}"
+
+# --- Pane navigation: vim-style hjkl (home-row) -----------------------------
+bind h select-pane -L
+bind j select-pane -D
+bind k select-pane -U
+bind l select-pane -R
+
+# --- Pane resize: shifted HJKL, repeatable (hold prefix + mash) -------------
+bind -r H resize-pane -L 5
+bind -r J resize-pane -D 5
+bind -r K resize-pane -U 5
+bind -r L resize-pane -R 5
+
+# --- Move window left / right (alacritty Ctrl+Shift+,  /  Ctrl+Shift+.) ----
+bind -r C-h swap-window -d -t -1
+bind -r C-l swap-window -d -t +1
+
+# --- Close pane (alacritty Ctrl+W sends prefix + X) -------------------------
+bind X kill-pane
+
+# --- Reload config ----------------------------------------------------------
+bind r source-file ~/.tmux.conf \; display-message "tmux.conf reloaded"
+
+# --- Quality of life --------------------------------------------------------
+set -g mouse on
+set -g base-index 1
+setw -g pane-base-index 1
+set-option -g renumber-windows on
+set -g history-limit 100000
+set -g escape-time 10
+set -g focus-events on
+set -g default-terminal "tmux-256color"
+set -ag terminal-overrides ",alacritty:RGB,xterm-256color:RGB"

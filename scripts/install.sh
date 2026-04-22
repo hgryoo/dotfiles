@@ -461,6 +461,73 @@ install_rtk() {
 }
 
 # ---------------------------------------------------------------------------
+# tmux + oh-my-tmux (gpakosz/.tmux)
+# chezmoi deploys ~/.tmux.conf.local with user overrides.
+# This step installs tmux itself and wires ~/.tmux.conf → ~/.tmux/.tmux.conf.
+# ---------------------------------------------------------------------------
+install_tmux() {
+  # 1) tmux binary
+  if command -v tmux &>/dev/null; then
+    echo ">>> tmux already installed ($(tmux -V)), skipping package install."
+  else
+    echo ">>> Installing tmux..."
+    case "$OS_ID" in
+      ubuntu) sudo apt-get install -y tmux ;;
+      rocky)  sudo dnf install -y tmux ;;
+    esac
+  fi
+
+  # 2) oh-my-tmux repo
+  if [ -d "$HOME/.tmux/.git" ]; then
+    echo ">>> oh-my-tmux already cloned at ~/.tmux, pulling latest..."
+    git -C "$HOME/.tmux" pull --ff-only || echo "WARNING: oh-my-tmux pull failed, continuing."
+  else
+    echo ">>> Cloning oh-my-tmux to ~/.tmux..."
+    git clone --depth=1 https://github.com/gpakosz/.tmux.git "$HOME/.tmux"
+  fi
+
+  # 3) ~/.tmux.conf symlink → ~/.tmux/.tmux.conf (oh-my-tmux entrypoint)
+  local target="$HOME/.tmux/.tmux.conf"
+  local link="$HOME/.tmux.conf"
+  if [ -L "$link" ] && [ "$(readlink -f "$link")" = "$(readlink -f "$target")" ]; then
+    echo ">>> ~/.tmux.conf already points to oh-my-tmux, skipping."
+  else
+    [ -e "$link" ] && mv -v "$link" "$link.bak.$(date +%Y%m%d%H%M%S)"
+    ln -sfn "$target" "$link"
+    echo ">>> Linked $link → $target"
+  fi
+
+  # Note: ~/.tmux.conf.local is managed by chezmoi — do not touch it here.
+}
+
+# ---------------------------------------------------------------------------
+# Alacritty (GPU-accelerated terminal emulator)
+# Config is deployed by chezmoi to ~/.config/alacritty/alacritty.toml
+# ---------------------------------------------------------------------------
+install_alacritty() {
+  if command -v alacritty &>/dev/null; then
+    echo ">>> alacritty already installed ($(alacritty --version | head -n1)), skipping."
+    return
+  fi
+  echo ">>> Installing alacritty..."
+  case "$OS_ID" in
+    ubuntu)
+      sudo apt-get install -y alacritty
+      ;;
+    rocky)
+      # Alacritty isn't in EPEL for Rocky 9 — fall back to cargo.
+      if command -v cargo &>/dev/null; then
+        sudo dnf install -y cmake freetype-devel fontconfig-devel \
+          libxcb-devel libxkbcommon-devel g++
+        cargo install alacritty
+      else
+        echo "WARNING: cargo not found — skipping alacritty install on Rocky." >&2
+      fi
+      ;;
+  esac
+}
+
+# ---------------------------------------------------------------------------
 # Tailscale
 # ---------------------------------------------------------------------------
 install_tailscale() {
@@ -519,6 +586,8 @@ print_summary() {
   command -v markitdown &>/dev/null && echo "markitdown: $(markitdown --version 2>/dev/null | head -n1)" || echo "markitdown: not found"
   command -v lazydiff   &>/dev/null && echo "lazydiff  : installed"                                       || echo "lazydiff  : not found"
   command -v lazygit    &>/dev/null && echo "lazygit   : $(lazygit --version | head -n1)"                 || echo "lazygit   : not found"
+  command -v tmux       &>/dev/null && echo "tmux      : $(tmux -V)"                                        || echo "tmux      : not found"
+  command -v alacritty  &>/dev/null && echo "alacritty : $(alacritty --version | head -n1)"                || echo "alacritty : not found"
   command -v tailscale  &>/dev/null && echo "tailscale : $(tailscale --version | head -n1)"                || echo "tailscale : not found"
   command -v gh         &>/dev/null && echo "gh        : $(gh --version | head -n1)"                      || echo "gh        : not found"
   command -v rtk        &>/dev/null && echo "rtk       : $(rtk --version 2>/dev/null | head -n1)"         || echo "rtk       : not found"
@@ -562,6 +631,8 @@ main() {
   install_direnv
   install_fzf
   install_just
+  install_tmux
+  install_alacritty
   install_tailscale
   install_gh
   install_rtk
