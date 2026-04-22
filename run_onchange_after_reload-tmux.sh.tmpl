@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Reload tmux config when ~/.tmux.conf.local changes.
+# The hash below makes chezmoi re-run this script whenever the source changes.
+#
+# tmux config hash: {{ include "dot_tmux.conf.local" | sha256sum }}
+
+set -eu
+
+command -v tmux >/dev/null 2>&1 || exit 0
+tmux info >/dev/null 2>&1 || exit 0
+
+tmux source-file "$HOME/.tmux.conf"
+echo ">>> tmux config reloaded in running server."
