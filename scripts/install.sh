@@ -197,6 +197,48 @@ _install_bison_from_source() {
 }
 
 # ---------------------------------------------------------------------------
+# Claude settings.json — seed-only (never overwrite existing)
+# Source: dot_claude/settings.json (chezmoi ignores .claude/** on purpose;
+# this function plants the defaults on first install so plugins/marketplaces
+# are auto-wired, but preserves any local customizations — hooks, model, etc.)
+# ---------------------------------------------------------------------------
+install_claude_settings() {
+  local repo_root
+  repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  local src="$repo_root/dot_claude/settings.json"
+  local dst="$HOME/.claude/settings.json"
+
+  if [ ! -f "$src" ]; then
+    echo "WARNING: $src not found — skipping Claude settings seed." >&2
+    return
+  fi
+  if [ -f "$dst" ]; then
+    if ! [ -t 0 ]; then
+      echo ">>> Claude settings.json exists at $dst; non-interactive shell, keeping existing."
+      return
+    fi
+    local reply
+    read -r -p ">>> Claude settings.json already exists at $dst. Overwrite? [y/N] " reply
+    case "${reply,,}" in
+      y|yes)
+        local backup="$dst.bak.$(date +%Y%m%d%H%M%S)"
+        cp "$dst" "$backup"
+        cp "$src" "$dst"
+        echo ">>> Overwrote $dst (previous saved to $backup)."
+        ;;
+      *)
+        echo ">>> Keeping existing $dst."
+        ;;
+    esac
+    return
+  fi
+
+  mkdir -p "$HOME/.claude"
+  cp "$src" "$dst"
+  echo ">>> Seeded $dst from $src."
+}
+
+# ---------------------------------------------------------------------------
 # Karpathy skills → ~/.claude/CLAUDE.md
 # Source: dot_claude/karpathy-skills.md (deployed by chezmoi to ~/.claude/)
 # ---------------------------------------------------------------------------
@@ -636,6 +678,7 @@ main() {
   install_tailscale
   install_gh
   install_rtk
+  install_claude_settings
   install_karpathy_skills
   install_claude_code
 
