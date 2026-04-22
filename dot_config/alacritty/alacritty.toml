@@ -41,17 +41,17 @@ key = "W"
 mods = "Control"
 chars = "\u0011X"
 
-# Horizontal split (tmux: split-window -h → `%`)
+# Vertical split, side-by-side (tmux: split-window -h bound to `|`)
 [[keyboard.bindings]]
 key = "D"
 mods = "Control"
-chars = "\u0011%"
+chars = "\u0011|"
 
-# Vertical split (tmux: split-window -v → `\"`)
+# Horizontal split, top/bottom (tmux: split-window -v bound to `-`)
 [[keyboard.bindings]]
 key = "D"
 mods = "Control|Shift"
-chars = "\u0011\""
+chars = "\u0011-"
 
 # Cycle panes (tmux: `o`)
 [[keyboard.bindings]]
