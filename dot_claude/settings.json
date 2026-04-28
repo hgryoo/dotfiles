@@ -24,7 +24,7 @@
     "claude-dashboard@claude-dashboard": true,
     "codex@openai-codex": true
   },
-  "effortLevel": "high",
+  "effortLevel": "xhigh",
   "autoMemoryEnabled": false,
   "permissions": {
     "defaultMode": "acceptEdits"
