@@ -49,3 +49,26 @@ set -g escape-time 10
 set -g focus-events on
 set -g default-terminal "tmux-256color"
 set -ag terminal-overrides ",alacritty:RGB,xterm-256color:RGB"
+
+# --- Copy / paste (vi-mode + OSC 52 to host clipboard) ----------------------
+# Alacritty supports OSC 52, so tmux can write to the system clipboard with
+# no xclip/xsel/wl-copy dependency.
+setw -g mode-keys vi
+set -s set-clipboard on
+set -ag terminal-overrides ",alacritty:Ms=\\E]52;c;%p2%s\\7"
+
+# vi-style selection in copy mode (prefix + [ to enter)
+bind-key -T copy-mode-vi v send-keys -X begin-selection
+bind-key -T copy-mode-vi C-v send-keys -X rectangle-toggle
+bind-key -T copy-mode-vi y send-keys -X copy-pipe-and-cancel
+
+# Mouse drag-release: copy selection to system clipboard, exit copy mode.
+# (Default behavior only fills the tmux buffer and stays in copy mode.)
+bind-key -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel
+# Single click clears any lingering selection so the next drag starts clean.
+bind-key -T copy-mode-vi MouseDown1Pane select-pane \; send-keys -X clear-selection
+
+# Prefix + p → paste most recent tmux buffer (use Ctrl+Shift+V in Alacritty
+# for system-clipboard paste; tmux forwards it to the active pane).
+unbind p
+bind p paste-buffer
