@@ -108,118 +108,6 @@ install_base_rocky() {
 }
 
 # ---------------------------------------------------------------------------
-# Ubuntu: CUBRID build dependencies
-# (ports cubrid/setup_cubrid_env.sh with Rocky support added alongside)
-# ---------------------------------------------------------------------------
-install_cubrid_build_deps_ubuntu() {
-  echo ">>> [Ubuntu] Installing CUBRID build dependencies..."
-
-  sudo apt-get install -y tzdata
-  sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
-  sudo apt-get update -y
-
-  # Essential build tools
-  sudo apt-get install -y --no-install-recommends \
-    build-essential \
-    wget git curl cmake ninja-build flex bison m4 \
-    pkg-config unzip libtool autoconf automake rpm \
-    systemtap systemtap-sdt-dev libelf-dev \
-    ncurses-dev openjdk-8-jdk
-
-  # GCC 10 toolchain
-  sudo apt-get install -y --no-install-recommends gcc-10 g++-10
-  sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 100
-  sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-10 100
-
-  echo "GCC: $(gcc --version | head -n1)"
-
-  _install_cmake_from_source
-  _install_ninja_from_source
-  _install_bison_from_source
-}
-
-# ---------------------------------------------------------------------------
-# Rocky Linux 9: CUBRID build dependencies
-# ---------------------------------------------------------------------------
-install_cubrid_build_deps_rocky() {
-  echo ">>> [Rocky] Installing CUBRID build dependencies..."
-
-  sudo dnf groupinstall -y "Development Tools"
-  sudo dnf install -y \
-    wget git curl flex bison m4 \
-    pkg-config libtool autoconf automake rpm-build \
-    systemtap systemtap-sdt-devel elfutils-libelf-devel \
-    ncurses-devel java-1.8.0-openjdk-devel
-
-  # GCC toolset 10 (from AppStream/CRB on Rocky 9)
-  if sudo dnf install -y gcc-toolset-10 gcc-toolset-10-gcc gcc-toolset-10-gcc-c++ 2>/dev/null; then
-    echo ">>> gcc-toolset-10 installed. Enable with: scl enable gcc-toolset-10 bash"
-    echo ">>> Or add to shell: source /opt/rh/gcc-toolset-10/enable"
-  else
-    echo "WARNING: gcc-toolset-10 unavailable on this Rocky version — using system GCC ($(gcc --version | head -n1))"
-  fi
-
-  _install_cmake_from_source
-  _install_ninja_from_source
-  _install_bison_from_source
-}
-
-# ---------------------------------------------------------------------------
-# Shared: CMake 3.26.3 from source (if not already installed)
-# ---------------------------------------------------------------------------
-_install_cmake_from_source() {
-  local CMAKE_VERSION=3.26.3
-  if cmake --version 2>/dev/null | grep -q "$CMAKE_VERSION"; then
-    echo ">>> CMake $CMAKE_VERSION already installed, skipping."
-    return
-  fi
-  echo ">>> Installing CMake $CMAKE_VERSION ..."
-  curl -L "https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-linux-x86_64.tar.gz" \
-    | sudo tar xzf - -C /usr --strip-components=1
-  echo "CMake: $(cmake --version | head -n1)"
-}
-
-# ---------------------------------------------------------------------------
-# Shared: Ninja 1.11.1 from source (if not already installed)
-# ---------------------------------------------------------------------------
-_install_ninja_from_source() {
-  local NINJA_VERSION=1.11.1
-  if ninja --version 2>/dev/null | grep -q "$NINJA_VERSION"; then
-    echo ">>> Ninja $NINJA_VERSION already installed, skipping."
-    return
-  fi
-  echo ">>> Installing Ninja $NINJA_VERSION ..."
-  local tmpdir
-  tmpdir=$(mktemp -d)
-  trap "rm -rf $tmpdir" RETURN
-  curl -L "https://github.com/ninja-build/ninja/archive/refs/tags/v${NINJA_VERSION}.tar.gz" \
-    | tar xzf - -C "$tmpdir" --strip-components=1
-  cmake -S "$tmpdir" -B "$tmpdir/build"
-  cmake --build "$tmpdir/build"
-  sudo mv "$tmpdir/build/ninja" /usr/local/bin/ninja
-  echo "Ninja: $(ninja --version)"
-}
-
-# ---------------------------------------------------------------------------
-# Shared: Bison 3.8.2 from source (if not already installed)
-# ---------------------------------------------------------------------------
-_install_bison_from_source() {
-  local BISON_VERSION=3.8.2
-  if bison --version 2>/dev/null | grep -q "$BISON_VERSION"; then
-    echo ">>> Bison $BISON_VERSION already installed, skipping."
-    return
-  fi
-  echo ">>> Installing Bison $BISON_VERSION ..."
-  local tmpdir
-  tmpdir=$(mktemp -d)
-  trap "rm -rf $tmpdir" RETURN
-  curl -L "https://ftp.gnu.org/gnu/bison/bison-${BISON_VERSION}.tar.gz" \
-    | tar xzf - -C "$tmpdir" --strip-components=1
-  (cd "$tmpdir" && ./configure --prefix=/usr/local && make -j"$(nproc)" && sudo make install)
-  echo "Bison: $(bison --version | head -n1)"
-}
-
-# ---------------------------------------------------------------------------
 # Claude settings.json — seed-only (never overwrite existing)
 # Source: dot_claude/settings.json (chezmoi ignores .claude/** on purpose;
 # this function plants the defaults on first install so plugins/marketplaces
@@ -434,12 +322,12 @@ install_just() {
 # CUBRID tools — moved out of dotfiles.
 #
 # CUBRID-related skills (cubrid-analyze-ci-failures, cubrid-create-testcases,
-# cubrid-build, cubrid-code-style, cubrid-org-jira, cubrid-rnd-jira) and
-# their helper scripts (cubindent, indent_all, setcubrid.sh, build_cubrid.sh)
+# cubrid-build, cubrid-code-style, cubrid-org-jira-fetch, cubrid-rnd-jira-fetch)
+# and their helper scripts (cubindent, indent_all, setcubrid.sh, build_cubrid.sh)
 # are now installed from the cubrid_cv repo:
 #
 #   bash /data/cubrid_cv/scaffold/install.sh --list
-#   bash /data/cubrid_cv/scaffold/install.sh --skills=cubrid-build,cubrid-org-jira
+#   bash /data/cubrid_cv/scaffold/install.sh --skills=cubrid-build,cubrid-org-jira-fetch
 #   bash /data/cubrid_cv/scaffold/install.sh --all
 #
 # That installer also handles cubrid-jira-fetcher (`uv tool install`).
@@ -506,6 +394,49 @@ install_rtk() {
   curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh
   export PATH="$HOME/.local/bin:$PATH"
   rtk init -g
+}
+
+# ---------------------------------------------------------------------------
+# Code Review Graph (uv tool, binary install only)
+# https://github.com/tirth8205/code-review-graph
+# Per-project setup is intentional: run 'code-review-graph install --platform
+# claude-code' inside each project where you want it active. We do NOT run it
+# globally because it (a) clobbers existing user-scope hooks and (b) drops
+# CLAUDE.md / .mcp.json into whatever directory it's invoked from.
+# ---------------------------------------------------------------------------
+install_code_review_graph() {
+  if ! command -v uv &>/dev/null; then
+    echo "WARNING: uv not found, cannot install code-review-graph." >&2
+    return
+  fi
+  if command -v code-review-graph &>/dev/null; then
+    echo ">>> code-review-graph already installed ($(code-review-graph --version 2>/dev/null | head -n1)), skipping."
+    return
+  fi
+  echo ">>> Installing code-review-graph via uv tool..."
+  uv tool install code-review-graph
+  export PATH="$HOME/.local/bin:$PATH"
+  echo ">>> Binary installed. Per-project setup: cd <project> && code-review-graph install --platform claude-code"
+}
+
+# ---------------------------------------------------------------------------
+# Token Savior (uv tool, MCP server)
+# https://github.com/Mibayy/token-savior
+# Binary install only — MCP registration is handled by scripts/install_mcp.sh.
+# ---------------------------------------------------------------------------
+install_token_savior() {
+  if ! command -v uv &>/dev/null; then
+    echo "WARNING: uv not found, cannot install token-savior." >&2
+    return
+  fi
+  if command -v token-savior &>/dev/null; then
+    echo ">>> token-savior already installed, skipping."
+    return
+  fi
+  echo ">>> Installing token-savior-recall[mcp] via uv tool..."
+  uv tool install 'token-savior-recall[mcp]'
+  export PATH="$HOME/.local/bin:$PATH"
+  echo ">>> Token Savior installed. Register MCP via: bash scripts/install_mcp.sh"
 }
 
 # ---------------------------------------------------------------------------
@@ -641,6 +572,8 @@ print_summary() {
   command -v rtk        &>/dev/null && echo "rtk       : $(rtk --version 2>/dev/null | head -n1)"         || echo "rtk       : not found"
   command -v claude &>/dev/null && echo "claude : $(claude --version | head -n1)" || echo "claude : not found"
   command -v omc    &>/dev/null && echo "omc    : $(omc --version 2>/dev/null || echo 'installed')" || echo "omc    : not found"
+  command -v code-review-graph &>/dev/null && echo "code-review-graph: $(code-review-graph --version 2>/dev/null | head -n1 || echo installed)" || echo "code-review-graph: not found"
+  command -v token-savior      &>/dev/null && echo "token-savior     : $(token-savior --version 2>/dev/null | head -n1 || echo installed)"      || echo "token-savior     : not found"
   echo "============================================================"
   echo "Done! Run 'source ~/.bashrc' to reload your shell."
 }
@@ -655,11 +588,9 @@ main() {
   case "$OS_ID" in
     ubuntu)
       install_base_ubuntu
-      install_cubrid_build_deps_ubuntu
       ;;
     rocky)
       install_base_rocky
-      install_cubrid_build_deps_rocky
       ;;
     *)
       echo "ERROR: Unsupported OS '$OS_ID'. Supported: ubuntu, rocky." >&2
@@ -686,6 +617,8 @@ main() {
   install_claude_settings
   install_karpathy_skills
   install_claude_code
+  install_code_review_graph
+  install_token_savior
 
   # Optional modules
   if $OPT_KB; then
