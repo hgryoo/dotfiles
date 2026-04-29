@@ -219,6 +219,22 @@ print_summary() {
 }
 
 # ---------------------------------------------------------------------------
+# openclaw (npm global, optional Claude-compatible CLI)
+# ---------------------------------------------------------------------------
+install_openclaw() {
+  if ! command -v npm &>/dev/null; then
+    echo "WARNING: npm not found, cannot install openclaw." >&2
+    return
+  fi
+  if npm list -g openclaw &>/dev/null; then
+    echo ">>> openclaw already installed, skipping."
+    return
+  fi
+  echo ">>> Installing openclaw (npm global)..."
+  npm install -g openclaw
+}
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 main() {
@@ -230,6 +246,7 @@ main() {
   install_vllm
   install_gemma4
   install_embeddinggemma
+  install_openclaw
 
   print_summary
 }
