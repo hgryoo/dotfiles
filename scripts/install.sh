@@ -431,40 +431,22 @@ install_just() {
 }
 
 # ---------------------------------------------------------------------------
-# CUBRID tools (cubrid-jira-fetcher + my-cubrid-skills)
+# CUBRID tools — moved out of dotfiles.
+#
+# CUBRID-related skills (cubrid-analyze-ci-failures, cubrid-create-testcases,
+# cubrid-build, cubrid-code-style, cubrid-org-jira, cubrid-rnd-jira) and
+# their helper scripts (cubindent, indent_all, setcubrid.sh, build_cubrid.sh)
+# are now installed from the cubrid_cv repo:
+#
+#   bash /data/cubrid_cv/scaffold/install.sh --list
+#   bash /data/cubrid_cv/scaffold/install.sh --skills=cubrid-build,cubrid-org-jira
+#   bash /data/cubrid_cv/scaffold/install.sh --all
+#
+# That installer also handles cubrid-jira-fetcher (`uv tool install`).
+# Submodules cubrid/tools/{cubrid-jira-fetcher,my-cubrid-skills} have been
+# removed from this repo's .gitmodules; run `git submodule deinit` and
+# `git rm` on the old paths if they are still on disk.
 # ---------------------------------------------------------------------------
-install_cubrid_tools() {
-  local repo_root
-  repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-
-  # Initialize submodules
-  echo ">>> Initializing CUBRID tools submodules..."
-  git -C "$repo_root" submodule update --init --recursive \
-    cubrid/tools/cubrid-jira-fetcher \
-    cubrid/tools/my-cubrid-skills
-
-  # pandoc (required by cubrid-jira-fetcher)
-  if command -v pandoc &>/dev/null; then
-    echo ">>> pandoc already installed ($(pandoc --version | head -n1)), skipping."
-  else
-    echo ">>> Installing pandoc..."
-    case "$OS_ID" in
-      ubuntu) sudo apt-get install -y pandoc ;;
-      rocky)  sudo dnf install -y pandoc ;;
-    esac
-  fi
-
-  # my-cubrid-skills — Claude Code skill pack (global)
-  # The pack installs individual skills into ~/.claude/skills/; use one as a marker.
-  if [[ -d "$HOME/.claude/skills/my-cubrid-skills-create" ]]; then
-    echo ">>> my-cubrid-skills already installed, skipping."
-  elif command -v npx &>/dev/null; then
-    echo ">>> Installing my-cubrid-skills..."
-    npx skills add vimkim/my-cubrid-skills -y -g
-  else
-    echo ">>> npx not found — skipping my-cubrid-skills."
-  fi
-}
 
 # ---------------------------------------------------------------------------
 # markitdown (Microsoft — file-to-Markdown converter)
@@ -685,7 +667,6 @@ main() {
       ;;
   esac
 
-  install_cubrid_tools
   install_uv
   install_rust
   install_markitdown

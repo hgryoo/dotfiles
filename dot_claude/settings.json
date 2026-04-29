@@ -1,9 +1,33 @@
 {
+  "model": "Opus",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/hgryoo/.claude/hooks/rtk-rewrite.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "node /home/hgryoo/.claude/plugins/cache/claude-dashboard/claude-dashboard/1.25.0/dist/index.js"
+  },
+  "enabledPlugins": {
+    "oh-my-claudecode@omc": true,
+    "claude-dashboard@claude-dashboard": true,
+    "codex@openai-codex": true,
+    "clangd@claude-code-lsps": true
+  },
   "extraKnownMarketplaces": {
     "omc": {
       "source": {
-        "source": "git",
-        "url": "https://github.com/Yeachan-Heo/oh-my-claudecode.git"
+        "source": "github",
+        "repo": "Yeachan-Heo/oh-my-claudecode"
       }
     },
     "claude-dashboard": {
@@ -17,20 +41,21 @@
         "source": "github",
         "repo": "openai/codex-plugin-cc"
       }
+    },
+    "claude-code-lsps": {
+      "source": {
+        "source": "github",
+        "repo": "boostvolt/claude-code-lsps"
+      }
     }
   },
-  "enabledPlugins": {
-    "oh-my-claudecode@omc": true,
-    "claude-dashboard@claude-dashboard": true,
-    "codex@openai-codex": true
-  },
   "effortLevel": "xhigh",
+  "skipDangerousModePermissionPrompt": true,
   "autoMemoryEnabled": false,
   "permissions": {
     "defaultMode": "acceptEdits"
   },
   "env": {
-    "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING": "1",
-    "CLAUDE_CODE_DISABLE_1M_CONTEXT": "1"
+    "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING": "1"
   }
 }

@@ -8,5 +8,13 @@
   "files.trimTrailingWhitespace": true,
   "files.insertFinalNewline": true,
   "terminal.integrated.defaultProfile.linux": "bash",
-  "workbench.colorTheme": "Default Dark Modern"
+  "workbench.colorTheme": "Default Dark Modern",
+  "claudeCode.preferredLocation": "panel",
+  "workbench.editorAssociations": {
+    "*.md": "vscode.markdown.preview.editor"
+  },
+  "markdown-preview-enhanced.breakOnSingleNewLine": false,
+  "markdown-preview-enhanced.enableHTML5Embed": true,
+  "markdown-preview-enhanced.enableExtendedTableSyntax": true,
+  "markdown-preview-enhanced.useGitHubStylePipedLink": true
 }
