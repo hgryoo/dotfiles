@@ -2,3 +2,9 @@ export LANG=en_US.UTF-8
 export LC_ALL=en_US.UTF-8
 export PATH="$HOME/.local/bin:$PATH"
 # Note: cargo/bin is added by $HOME/.cargo/env (sourced in .bashrc)
+
+# Personal knowledge base — consumed by /kb-search, /kb-curate, /kb-index
+# (and any other tooling that walks up for `knowledge/` + `raw/`).
+# When the CWD walk-up fails (i.e., working in a sibling repo), the kb-*
+# scripts fall back to this env var. See dot_claude/KB.md for usage.
+[ -d "/data/hgryoo/knowledge-base" ] && export KB_ROOT="/data/hgryoo/knowledge-base"
