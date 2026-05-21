@@ -82,7 +82,7 @@ install_base_ubuntu() {
   echo ">>> [Ubuntu] Updating package index..."
   sudo apt-get update -y
   sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    curl wget git build-essential \
+    curl wget git build-essential ccache \
     libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev \
     libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev \
     libffi-dev liblzma-dev \
@@ -100,7 +100,7 @@ install_base_rocky() {
   sudo dnf install -y epel-release
   sudo dnf config-manager --set-enabled crb 2>/dev/null || true
   sudo dnf install -y \
-    curl wget git \
+    curl wget git ccache \
     openssl-devel zlib-devel bzip2-devel readline-devel sqlite-devel \
     ncurses-devel xz-devel libffi-devel \
     ca-certificates unzip zip \
@@ -397,6 +397,21 @@ install_rtk() {
 }
 
 # ---------------------------------------------------------------------------
+# abtop (btop-like TUI for Claude Code / Codex CLI sessions)
+# https://github.com/graykode/abtop
+# ---------------------------------------------------------------------------
+install_abtop() {
+  if command -v abtop &>/dev/null; then
+    echo ">>> abtop already installed ($(abtop --version 2>/dev/null | head -n1)), skipping."
+    return
+  fi
+  echo ">>> Installing abtop..."
+  curl --proto '=https' --tlsv1.2 -LsSf \
+    https://github.com/graykode/abtop/releases/latest/download/abtop-installer.sh | sh
+  export PATH="$HOME/.local/bin:$PATH"
+}
+
+# ---------------------------------------------------------------------------
 # Code Review Graph (uv tool, binary install only)
 # https://github.com/tirth8205/code-review-graph
 # Per-project setup is intentional: run 'code-review-graph install --platform
@@ -555,6 +570,7 @@ print_summary() {
   command -v cmake  &>/dev/null && echo "CMake  : $(cmake --version | head -n1)" || echo "CMake  : not found"
   command -v ninja  &>/dev/null && echo "Ninja  : $(ninja --version)"             || echo "Ninja  : not found"
   command -v bison  &>/dev/null && echo "Bison  : $(bison --version | head -n1)" || echo "Bison  : not found"
+  command -v ccache &>/dev/null && echo "ccache : $(ccache --version | head -n1)" || echo "ccache : not found"
   command -v java   &>/dev/null && echo "Java   : $(java -version 2>&1 | head -n1)" || echo "Java   : not found"
   command -v uv     &>/dev/null && echo "uv     : $(uv --version)"                || echo "uv     : not found"
   command -v rustc  &>/dev/null && echo "Rust   : $(rustc --version)"             || echo "Rust   : not found"
@@ -570,6 +586,7 @@ print_summary() {
   command -v tailscale  &>/dev/null && echo "tailscale : $(tailscale --version | head -n1)"                || echo "tailscale : not found"
   command -v gh         &>/dev/null && echo "gh        : $(gh --version | head -n1)"                      || echo "gh        : not found"
   command -v rtk        &>/dev/null && echo "rtk       : $(rtk --version 2>/dev/null | head -n1)"         || echo "rtk       : not found"
+  command -v abtop      &>/dev/null && echo "abtop     : $(abtop --version 2>/dev/null | head -n1)"       || echo "abtop     : not found"
   command -v claude &>/dev/null && echo "claude : $(claude --version | head -n1)" || echo "claude : not found"
   command -v omc    &>/dev/null && echo "omc    : $(omc --version 2>/dev/null || echo 'installed')" || echo "omc    : not found"
   command -v code-review-graph &>/dev/null && echo "code-review-graph: $(code-review-graph --version 2>/dev/null | head -n1 || echo installed)" || echo "code-review-graph: not found"
@@ -614,6 +631,7 @@ main() {
   install_tailscale
   install_gh
   install_rtk
+  install_abtop
   install_claude_settings
   install_karpathy_skills
   install_claude_code
