@@ -17,7 +17,25 @@ alias mk='ninja -C build'
 alias cb='cd ~/cubrid'
 
 # AI
-alias claude='claude --dangerously-skip-permissions'
+# Always launch Claude Code inside a tmux session.
+# - If already inside tmux ($TMUX set), run claude in-place.
+# - If stdout is not a TTY (piped/non-interactive), skip the tmux wrap.
+# - Otherwise spawn a fresh tmux session named after the last 2 path components.
+claude() {
+  if [ -n "$TMUX" ] || [ ! -t 1 ]; then
+    command claude --dangerously-skip-permissions "$@"
+    return $?
+  fi
+  # tmux session names disallow '.' and ':' — slugify last 2 path components.
+  local dir_tail dir_slug
+  dir_tail=$(printf %s "$PWD" | awk -F/ '{n=NF; a=(n>1?$(n-1):""); b=$n; print (a==""?b:a"-"b)}')
+  dir_slug=$(printf %s "$dir_tail" | tr -c '[:alnum:]_-' '-' | sed 's/-\{2,\}/-/g; s/^-//; s/-$//')
+  [ -z "$dir_slug" ] && dir_slug="root"
+  local session="claude-${dir_slug}-$$"
+  local args
+  args=$(printf '%q ' "$@")
+  tmux new-session -s "$session" "command claude --dangerously-skip-permissions $args"
+}
 
 # Python
 alias py='python3'
