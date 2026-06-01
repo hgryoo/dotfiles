@@ -89,3 +89,6 @@ use-cubrid() {
 # 기본 계정(현재): ~/.claude  |  cubrid 계정: ~/.claude-cubrid
 alias claude-main='CLAUDE_CONFIG_DIR=$HOME/.claude claude'
 alias claude-cubrid='CLAUDE_CONFIG_DIR=$HOME/.claude-cubrid claude'
+# 짧은 별칭: cl → 기본 claude, clc → cubrid 프로필
+alias cl='claude'
+alias clc='CLAUDE_CONFIG_DIR=$HOME/.claude-cubrid claude'
