@@ -84,3 +84,8 @@ use-cubrid() {
   export PATH="$CUBRID/bin:$PATH"
   echo "CUBRID environment set to: $CUBRID"
 }
+
+# --- Claude Code 계정 프로필 전환 (added 2026-06-01) ---
+# 기본 계정(현재): ~/.claude  |  cubrid 계정: ~/.claude-cubrid
+alias claude-main='CLAUDE_CONFIG_DIR=$HOME/.claude claude'
+alias claude-cubrid='CLAUDE_CONFIG_DIR=$HOME/.claude-cubrid claude'
