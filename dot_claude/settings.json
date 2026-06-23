@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/home/hgryoo/.claude/hooks/rtk-rewrite.sh"
+            "command": "/home/hgryoo/.local/bin/snip hook"
           }
         ]
       }
