@@ -2,12 +2,13 @@
 # Overrides & additions layered on top of ~/.tmux/.tmux.conf.
 # Works standalone as well: you can also `source-file` this directly.
 
-# --- Prefix → C-q (to pair with alacritty Ctrl+<key> bindings) --------------
+# --- Prefix → C-Space (C-q closed VSCode; C-Space is conflict-light) ---------
 set -gu prefix2
 unbind C-a
 unbind C-b
-set -g prefix C-q
-bind C-q send-prefix
+unbind C-q
+set -g prefix C-Space
+bind C-Space send-prefix
 
 # --- Splits: intuitive `|` / `-` (divider shape matches the key) ------------
 # Unbind the cryptic defaults to avoid muscle-memory collisions.
