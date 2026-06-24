@@ -33,6 +33,16 @@ bind -r L resize-pane -R 5
 bind -r C-h swap-window -d -t -1
 bind -r C-l swap-window -d -t +1
 
+# --- Window navigation: , = prev, . = next (repeatable, hold prefix + mash) -
+# Overrides the oh-my-tmux defaults on these keys:
+#   ,  was rename-window  → moved to R below
+#   .  was move-window    → dropped (rarely needed; renumber-windows is on)
+unbind ,
+unbind .
+bind -r , previous-window
+bind -r . next-window
+bind R command-prompt -I "#W" { rename-window "%%" }
+
 # --- Close pane (alacritty Ctrl+W sends prefix + X) -------------------------
 bind X kill-pane
 
