@@ -2,13 +2,14 @@
 # Overrides & additions layered on top of ~/.tmux/.tmux.conf.
 # Works standalone as well: you can also `source-file` this directly.
 
-# --- Prefix → C-Space (C-q closed VSCode; C-Space is conflict-light) ---------
+# --- Prefix → C-a (C-q closed VSCode; C-Space hit VSCode IntelliSense) -------
+# Double-tap C-a C-a sends a literal C-a for readline beginning-of-line.
 set -gu prefix2
-unbind C-a
 unbind C-b
 unbind C-q
-set -g prefix C-Space
-bind C-Space send-prefix
+unbind C-Space
+set -g prefix C-a
+bind C-a send-prefix
 
 # --- Splits: intuitive `|` / `-` (divider shape matches the key) ------------
 # Unbind the cryptic defaults to avoid muscle-memory collisions.
