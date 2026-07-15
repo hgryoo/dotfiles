@@ -15,7 +15,9 @@ bootstrap.sh [OPTIONS]           ← single entry point
 │
 ├─ --auth → scripts/auth.sh     (GitHub, Google, HuggingFace OAuth)
 │
-└─ --setup → scripts/setup.sh   (git config, env vars → ~/.config/personal/env)
+├─ --setup → scripts/setup.sh   (git config, env vars → ~/.config/personal/env)
+│
+└─ --data → scripts/setup_data_repos.sh  (clone /data knowledge repos)
 ```
 
 ## Quick Start
@@ -70,6 +72,7 @@ bash bootstrap.sh --install-only --kb --local-llm # base + kb + llm
 | `scripts/install_local_llm.sh` | Local LLM: Ollama, llama.cpp, vLLM, Gemma 4 |
 | `scripts/auth.sh` | Interactive OAuth login for services |
 | `scripts/setup.sh` | One-time personalization: git config, env vars, summary |
+| `scripts/setup_data_repos.sh` | Clone Claude knowledge repos into `/data` (cubrid_cv, cub_sys, hgryoo, references) |
 | `scripts/sync_knowledge.sh` | rsync `~/obsidian/ ↔ ~/knowledge/` (`pull`/`push`) |
 
 ---

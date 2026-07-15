@@ -7,6 +7,7 @@
 #   bash bootstrap.sh --auth         # + service authentication (GitHub, Google, HuggingFace)
 #   bash bootstrap.sh --kb           # + knowledge base tools (gcloud, obsidian-cli, qmd, gws)
 #   bash bootstrap.sh --local-llm    # + local LLM tools (ollama, llama.cpp, vLLM, gemma4)
+#   bash bootstrap.sh --data         # + clone Claude knowledge repos into /data
 #   bash bootstrap.sh --all          # everything
 #   bash bootstrap.sh --install-only # skip chezmoi, run install.sh only
 set -euo pipefail
@@ -19,6 +20,7 @@ OPT_SETUP=false
 OPT_AUTH=false
 OPT_KB=false
 OPT_LLM=false
+OPT_DATA=false
 OPT_GCLOUD_ONLY=false
 
 usage() {
@@ -30,6 +32,7 @@ Options:
   --auth         Run service authentication (GitHub, Google, HuggingFace)
   --kb           Install knowledge base tools (gcloud, obsidian-cli, qmd, gws)
   --local-llm    Install local LLM tools (ollama, llama.cpp, vLLM, gemma4)
+  --data         Clone Claude knowledge repos into /data (cubrid_cv, cub_sys, hgryoo)
   --gcloud       Install ONLY Google Cloud CLI (skips chezmoi + base install)
   --all          Run everything except local LLM (chezmoi + install + auth + setup + kb)
   --install-only Skip chezmoi apply, run install.sh only
@@ -57,6 +60,7 @@ for arg in "$@"; do
     --auth)         OPT_AUTH=true ;;
     --kb)           OPT_KB=true ;;
     --local-llm)    OPT_LLM=true ;;
+    --data)         OPT_DATA=true ;;
     --gcloud)       OPT_GCLOUD_ONLY=true ;;
     --all)          OPT_SETUP=true; OPT_AUTH=true; OPT_KB=true ;;
     --install-only) OPT_CHEZMOI=false ;;
@@ -88,6 +92,8 @@ $OPT_AUTH    && echo "  3. scripts/auth.sh      (GitHub, Google, HuggingFace)" \
               || echo "  3. scripts/auth.sh      SKIP (use --auth to enable)"
 $OPT_SETUP   && echo "  4. scripts/setup.sh     (git config, secrets, env vars)" \
               || echo "  4. scripts/setup.sh     SKIP (use --setup to enable)"
+$OPT_DATA    && echo "  5. scripts/setup_data_repos.sh  (clone /data knowledge repos)" \
+              || echo "  5. scripts/setup_data_repos.sh  SKIP (use --data to enable)"
 echo
 echo " Tip: bash bootstrap.sh --help   for all options"
 echo "      bash bootstrap.sh --all    to run everything"
@@ -136,6 +142,15 @@ fi
 if $OPT_SETUP; then
   echo ">>> Running setup.sh..."
   bash "$DOTFILES_DIR/scripts/setup.sh"
+fi
+
+# ---------------------------------------------------------------------------
+# Step 5: data repos (optional)
+# ---------------------------------------------------------------------------
+if $OPT_DATA; then
+  echo ">>> Running setup_data_repos.sh..."
+  bash "$DOTFILES_DIR/scripts/setup_data_repos.sh" \
+    || echo ">>> setup_data_repos.sh reported failed clones (see above)."
 fi
 
 # ---------------------------------------------------------------------------
