@@ -195,6 +195,19 @@ EOF
   echo ">>> write  cub_sys/.cubrid.sh"
 fi
 
+if in_group hgryoo && [ -f "$DATA_ROOT/hgryoo/scaffold/install.sh" ]; then
+  # Wire the general-purpose Claude Code skills + CLI tools into the user
+  # environment now that the scaffold repo is on disk. install.sh symlinks each
+  # skill into ~/.claude/skills/ and each tool into ~/.local/bin/ (idempotent).
+  # bootstrap.sh runs scripts/install.sh BEFORE this data-clone step, so on a
+  # fresh machine the scaffold isn't present yet when install.sh's
+  # install_scaffold_skills() runs — this post-clone hook is what actually wires
+  # it the first time. (The CUBRID skills are a separate scaffold, not touched.)
+  echo ">>> install scaffold skills + tools (-> ~/.claude/skills, ~/.local/bin)"
+  bash "$DATA_ROOT/hgryoo/scaffold/install.sh" \
+    || echo "!!! scaffold install.sh reported an error — run it by hand." >&2
+fi
+
 # ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------

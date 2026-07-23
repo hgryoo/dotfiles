@@ -177,6 +177,39 @@ install_karpathy_skills() {
 }
 
 # ---------------------------------------------------------------------------
+# Scaffold skills + tools → ~/.claude/skills/ and ~/.local/bin/
+# The general-purpose Claude Code skills (dev-*, doc-*, kb-*, common, academic-*)
+# and the standalone CLI tools live in the hgryoo/scaffold repo, cloned by
+# scripts/setup_data_repos.sh. Its install.sh symlinks each skill into
+# ~/.claude/skills/ and each tool into ~/.local/bin/ — idempotent, so re-running
+# just refreshes the links. We run it here so a plain `install.sh` on a machine
+# that already has /data cloned wires the skills without a manual step.
+#
+# NOTE: the CUBRID-specific skills are a SEPARATE scaffold (cubrid_cv/scaffold)
+# and are intentionally NOT installed here — install those with
+# `bash /data/cubrid_cv/scaffold/install.sh`.
+# ---------------------------------------------------------------------------
+install_scaffold_skills() {
+  local candidates=(
+    "${DATA_ROOT:-/data}/hgryoo/scaffold"
+    "/data/hgryoo/scaffold"
+    "$HOME/scaffold"
+  )
+  local scaffold=""
+  local c
+  for c in "${candidates[@]}"; do
+    if [ -f "$c/install.sh" ]; then scaffold="$c"; break; fi
+  done
+  if [ -z "$scaffold" ]; then
+    echo ">>> hgryoo/scaffold not found (looked in: ${candidates[*]})."
+    echo ">>> Skills install skipped — clone it with 'bash bootstrap.sh --data', then re-run install.sh."
+    return
+  fi
+  echo ">>> Installing scaffold skills + tools from $scaffold ..."
+  bash "$scaffold/install.sh" || echo "WARNING: scaffold install.sh reported an error (continuing)."
+}
+
+# ---------------------------------------------------------------------------
 # Claude Code + oh-my-claudecode
 # ---------------------------------------------------------------------------
 install_claude_code() {
@@ -634,6 +667,7 @@ main() {
   install_abtop
   install_claude_settings
   install_karpathy_skills
+  install_scaffold_skills
   install_claude_code
   install_code_review_graph
   install_token_savior
