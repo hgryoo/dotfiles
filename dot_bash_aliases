@@ -16,27 +16,6 @@ alias cm='cmake -GNinja'
 alias mk='ninja -C build'
 alias cb='cd ~/cubrid'
 
-# AI
-# Always launch Claude Code inside a tmux session.
-# - If already inside tmux ($TMUX set), run claude in-place.
-# - If stdout is not a TTY (piped/non-interactive), skip the tmux wrap.
-# - Otherwise spawn a fresh tmux session named after the last 2 path components.
-claude() {
-  if [ -n "$TMUX" ] || [ ! -t 1 ]; then
-    command claude --dangerously-skip-permissions "$@"
-    return $?
-  fi
-  # tmux session names disallow '.' and ':' — slugify last 2 path components.
-  local dir_tail dir_slug
-  dir_tail=$(printf %s "$PWD" | awk -F/ '{n=NF; a=(n>1?$(n-1):""); b=$n; print (a==""?b:a"-"b)}')
-  dir_slug=$(printf %s "$dir_tail" | tr -c '[:alnum:]_-' '-' | sed 's/-\{2,\}/-/g; s/^-//; s/-$//')
-  [ -z "$dir_slug" ] && dir_slug="root"
-  local session="claude-${dir_slug}-$$"
-  local args
-  args=$(printf '%q ' "$@")
-  tmux new-session -s "$session" "command claude --dangerously-skip-permissions $args"
-}
-
 # Python
 alias py='python3'
 
@@ -85,10 +64,87 @@ use-cubrid() {
   echo "CUBRID environment set to: $CUBRID"
 }
 
-# --- Claude Code 계정 프로필 전환 (added 2026-06-01) ---
-# 기본 계정(현재): ~/.claude  |  cubrid 계정: ~/.claude-cubrid
-alias claude-main='CLAUDE_CONFIG_DIR=$HOME/.claude claude'
-alias claude-cubrid='CLAUDE_CONFIG_DIR=$HOME/.claude-cubrid claude'
-# 짧은 별칭: cl → 기본 claude, clc → cubrid 프로필
-alias cl='claude'
-alias clc='CLAUDE_CONFIG_DIR=$HOME/.claude-cubrid claude'
+# --- Claude Code 계정 프로필 전환 (added 2026-06-01, tmux 래핑 복원 2026-06-18) ---
+# 기본 계정(개인): ~/.claude (hyunggyu.ryoo@gmail.com)
+# cubrid 계정(회사): ~/.claude-cubrid (hgryoo@cubrid.com)
+#
+# claude-main / claude-cubrid 는 tmux 없이 직접 실행하는 탈출구(raw)로 남겨둔다.
+alias claude-main='CLAUDE_CONFIG_DIR=$HOME/.claude command claude'
+alias claude-cubrid='CLAUDE_CONFIG_DIR=$HOME/.claude-cubrid command claude'
+
+# 공통: Claude Code 를 tmux 세션 안에서 실행하는 래퍼.
+#   _claude_run <config_dir> [claude 인자...]
+# - 이미 tmux 안($TMUX)이거나 stdout 이 TTY 가 아니면(파이프/비대화형) in-place 실행.
+# - 아니면 현재 경로 마지막 2개 컴포넌트로 이름 붙인 새 tmux 세션을 띄운다.
+_claude_run() {
+  local config_dir="$1"; shift
+  if [ -n "$TMUX" ] || [ ! -t 1 ]; then
+    CLAUDE_CONFIG_DIR="$config_dir" command claude "$@"
+    return $?
+  fi
+  # tmux 세션 이름엔 '.' ':' 불가 → 마지막 2개 경로 컴포넌트를 슬러그화.
+  local dir_tail dir_slug
+  dir_tail=$(printf %s "$PWD" | awk -F/ '{n=NF; a=(n>1?$(n-1):""); b=$n; print (a==""?b:a"-"b)}')
+  dir_slug=$(printf %s "$dir_tail" | tr -c '[:alnum:]_-' '-' | sed 's/-\{2,\}/-/g; s/^-//; s/-$//')
+  [ -z "$dir_slug" ] && dir_slug="root"
+  # 세션 이름 접두사로 계정 구분: ~/.claude → claude- (cl), ~/.claude-cubrid → claudec- (clc).
+  # cl-tabs / clc-tabs 가 이 접두사로 계정별 세션을 골라낸다.
+  local prefix=claude
+  [ "$(basename -- "$config_dir")" = ".claude-cubrid" ] && prefix=claudec
+  local session="${prefix}-${dir_slug}-$$"
+  local args
+  args=$(printf '%q ' "$@")
+  tmux new-session -s "$session" "CLAUDE_CONFIG_DIR=$(printf %q "$config_dir") command claude $args"
+}
+
+# 짧은 진입점: cl → 개인 계정, clc → 회사(cubrid) 계정 (둘 다 tmux 세션 안에서 실행).
+cl()  { _claude_run "$HOME/.claude"        --dangerously-skip-permissions --effort xhigh "$@"; }
+clc() { _claude_run "$HOME/.claude-cubrid" --dangerously-skip-permissions --effort xhigh "$@"; }
+clt() { _claude_run "$HOME/.cubrid-cubrid1" --dangerously-skip-permissions --effort xhigh "$@"; }
+
+# `claude` 만 입력하면 개인(cl) / 회사(clc) 중 선택하도록 묻고, 역시 tmux 세션 안에서 실행.
+# 프롬프트 없이 바로 쓰려면 cl / clc 를 사용.
+claude() {
+  local sel
+  echo "어떤 Claude 계정으로 실행할까요?" >&2
+  echo "  1) cl  → 개인 계정 (hyunggyu.ryoo@gmail.com)  [~/.claude]" >&2
+  echo "  2) clc → 회사 계정 (hgryoo@cubrid.com)        [~/.claude-cubrid]" >&2
+  read -r -p "선택 [1/2] (기본 1): " sel
+  case "$sel" in
+    2|clc|c) _claude_run "$HOME/.claude-cubrid" "$@" ;;
+    *)       _claude_run "$HOME/.claude"        "$@" ;;
+  esac
+}
+
+# 같은 계정으로 '격리된' 추가 세션 실행 (.claude.json 경합 없음 → 동시 실행 안전)
+#   clm           → 개인 계정 격리 세션
+#   clm cubrid    → 회사 계정 격리 세션
+# 로그인(.credentials.json)만 공유하고, 세션별 임시 config 디렉토리를 쓴다.
+# 종료되면 해당 임시 디렉토리는 자동 삭제된다(히스토리는 세션 간 비공유).
+clm() {
+  local base="$HOME/.claude"
+  if [ "$1" = "cubrid" ] || [ "$1" = "clc" ]; then base="$HOME/.claude-cubrid"; shift; fi
+  local sess="${base}-sessions/$$-${EPOCHSECONDS:-$(date +%s)}"
+  mkdir -p "$sess"
+  cp "$base/.credentials.json" "$sess/" 2>/dev/null   # 로그인 공유 → 같은 계정 인증
+  cp "$base/.claude.json"      "$sess/" 2>/dev/null   # 시작 설정 시드(이후 독립)
+  ( trap 'rm -rf "$sess"' EXIT
+    CLAUDE_CONFIG_DIR="$sess" command claude "$@" )
+}
+
+# --- abtop: 항상 tmux 세션 안에서 실행 (added 2026-06-19) ---
+# 이유: detach 상태로 계속 돌다가 `tmux attach -t abtop` 으로 언제든 다시 붙기 위함.
+# - 이미 tmux 안($TMUX)이거나 stdout 이 TTY 가 아니면(파이프/비대화형) in-place 실행.
+# - 아니면 'abtop' 이름의 tmux 세션에 붙거나(-A), 없으면 새로 만들어 실행한다.
+#   (이미 떠 있으면 그 세션을 그대로 attach → 인자는 최초 생성 때만 적용됨)
+# abtop-raw 는 tmux 없이 직접 실행하는 탈출구(raw).
+alias abtop-raw='command abtop'
+abtop() {
+  if [ -n "$TMUX" ] || [ ! -t 1 ]; then
+    command abtop "$@"
+    return $?
+  fi
+  local args
+  args=$(printf '%q ' "$@")
+  tmux new-session -A -s abtop "command abtop $args"
+}
