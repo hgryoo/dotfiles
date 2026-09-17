@@ -22,6 +22,11 @@ export PATH="$HOME/.pyenv/bin:$PATH"
 eval "$(pyenv init -)"
 
 {{ end -}}
+# nvm + Node (agent tooling: codex, openclaw, sisyphus; slides: marp, mermaid)
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+[ -s "$NVM_DIR/bash_completion" ] && . "$NVM_DIR/bash_completion"
+
 # direnv
 if command -v direnv &>/dev/null; then
   eval "$(direnv hook bash)"
@@ -37,8 +42,12 @@ if command -v fzf &>/dev/null; then
   fi
 fi
 
-# ~/bin on PATH
+# ~/bin on PATH — must stay ahead of /usr/bin so CUBRID picks up bison 3.0.5
 export PATH="$HOME/bin:$PATH"
+
+# uv tools / chezmoi / snip live here
+export PATH="$HOME/.local/bin:$PATH"
+
 
 export ENABLE_LSP_TOOL=1
 

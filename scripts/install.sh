@@ -88,6 +88,18 @@ install_base_ubuntu() {
     libffi-dev liblzma-dev \
     software-properties-common apt-transport-https ca-certificates \
     jq htop unzip zip
+
+  # CUBRID engine build requirements (docs/install_build_requirements.md):
+  # C++17 compiler, CMake >= 3.21, JDK >= 8, ant, flex/bison, elf/systemtap
+  # headers for the dtrace probes, libtool/autoconf for the 3rdparty tree.
+  echo ">>> [Ubuntu] Installing CUBRID build requirements..."
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    cmake ninja-build pkg-config gettext \
+    default-jdk ant \
+    flex libncurses-dev \
+    libtool libtool-bin autoconf automake \
+    libelf-dev systemtap-sdt-dev elfutils \
+    rpm gdb cgdb
 }
 
 # ---------------------------------------------------------------------------
@@ -105,6 +117,16 @@ install_base_rocky() {
     ncurses-devel xz-devel libffi-devel \
     ca-certificates unzip zip \
     jq htop
+
+  # CUBRID engine build requirements (docs/install_build_requirements.md)
+  echo ">>> [Rocky] Installing CUBRID build requirements..."
+  sudo dnf install -y \
+    gcc gcc-c++ make cmake ninja-build pkgconf-pkg-config gettext \
+    java-devel ant \
+    flex ncurses-devel \
+    libtool libtool-ltdl autoconf automake \
+    elfutils-libelf-devel systemtap-sdt-devel \
+    rpm-build gdb
 }
 
 # ---------------------------------------------------------------------------
@@ -592,6 +614,170 @@ install_gh() {
 }
 
 # ---------------------------------------------------------------------------
+# nvm + Node.js
+# The agent tooling (codex, openclaw, sisyphus) and the slide pipeline
+# (marp-cli, mermaid-cli, slides-grab) all run on a user-owned Node, not the
+# distro one. nvm keeps that Node out of /usr and lets the version move.
+# obsidian-cli and qmd are deliberately left to install_kb.sh.
+# ---------------------------------------------------------------------------
+NVM_DIR_DEFAULT="$HOME/.nvm"
+NODE_VERSION="${NODE_VERSION:-24}"
+
+NPM_GLOBALS=(
+  "@openai/codex"
+  "oh-my-claude-sisyphus"
+  "openclaw"
+  "@marp-team/marp-cli"
+  "@mermaid-js/mermaid-cli"
+  "slides-grab"
+)
+
+install_nvm() {
+  export NVM_DIR="${NVM_DIR:-$NVM_DIR_DEFAULT}"
+
+  if [ -s "$NVM_DIR/nvm.sh" ]; then
+    echo ">>> nvm already installed at $NVM_DIR, skipping install."
+  else
+    echo ">>> Installing nvm..."
+    curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+  fi
+
+  # shellcheck disable=SC1091
+  . "$NVM_DIR/nvm.sh"
+
+  if nvm ls "$NODE_VERSION" &>/dev/null; then
+    echo ">>> Node $NODE_VERSION already installed, skipping."
+  else
+    echo ">>> Installing Node $NODE_VERSION..."
+    nvm install "$NODE_VERSION"
+  fi
+  nvm alias default "$NODE_VERSION" >/dev/null
+  nvm use default >/dev/null
+  echo ">>> Node: $(node --version)  npm: $(npm --version)"
+
+  echo ">>> Installing global npm packages..."
+  for pkg in "${NPM_GLOBALS[@]}"; do
+    if npm ls -g --depth=0 "$pkg" &>/dev/null; then
+      echo "    - $pkg already installed, skipping."
+    else
+      echo "    - $pkg"
+      npm install -g "$pkg" || echo "    !!! $pkg failed — install by hand." >&2
+    fi
+  done
+}
+
+# ---------------------------------------------------------------------------
+# snip (CLI token killer — replaces rtk)
+# https://github.com/edouard-claude/snip
+# `snip init` installs the Claude Code PreToolUse hook that rewrites shell
+# commands through the filter pipeline. Documented in dot_claude/SNIP.md.
+# ---------------------------------------------------------------------------
+install_snip() {
+  if command -v snip &>/dev/null; then
+    echo ">>> snip already installed ($(snip --version 2>/dev/null | head -n1)), skipping."
+    return
+  fi
+  echo ">>> Installing snip..."
+  curl -fsSL https://raw.githubusercontent.com/edouard-claude/snip/main/install.sh | sh
+  export PATH="$HOME/.local/bin:$PATH"
+  command -v snip &>/dev/null && snip init \
+    || echo "!!! snip not on PATH after install — run 'snip init' by hand." >&2
+}
+
+# ---------------------------------------------------------------------------
+# uv tools
+# Standalone Python CLIs kept out of any project venv. markitdown,
+# code-review-graph and token-savior have their own functions above because
+# they carry extra setup; these are plain installs.
+# ---------------------------------------------------------------------------
+UV_TOOLS=(
+  "git+https://github.com/vimkim/cubrid-jira-fetcher|cubrid-jira-fetch"
+  "copyparty|copyparty"
+  "openai-whisper|whisper"
+)
+
+install_uv_tools() {
+  if ! command -v uv &>/dev/null; then
+    echo "WARNING: uv not found, cannot install uv tools." >&2
+    return
+  fi
+  for entry in "${UV_TOOLS[@]}"; do
+    IFS='|' read -r spec bin <<<"$entry"
+    if command -v "$bin" &>/dev/null; then
+      echo ">>> $bin already installed, skipping."
+      continue
+    fi
+    echo ">>> Installing $spec via uv tool..."
+    uv tool install "$spec" || echo "!!! $spec failed — install by hand." >&2
+  done
+  export PATH="$HOME/.local/bin:$PATH"
+}
+
+# ---------------------------------------------------------------------------
+# bison 3.0.5 (CUBRID)
+# Ubuntu 24.04 ships bison 3.8, whose generated parsers do not build against
+# CUBRID's grammar. docs/install_build_requirements.md pins 3.0.5, so build it
+# from source into ~/bin and shadow the distro one via the ~/bin PATH entry
+# that .bashrc already prepends. Also plants the `yacc` wrapper CUBRID expects.
+# ---------------------------------------------------------------------------
+BISON_VERSION="3.0.5"
+
+install_bison_cubrid() {
+  if [ -x "$HOME/bin/bison" ] && "$HOME/bin/bison" --version 2>/dev/null | head -n1 | grep -q "$BISON_VERSION"; then
+    echo ">>> bison $BISON_VERSION already in ~/bin, skipping."
+    return
+  fi
+  echo ">>> Building bison $BISON_VERSION from source (CUBRID needs it, not the distro 3.8)..."
+  local tmp
+  tmp="$(mktemp -d)"
+  (
+    cd "$tmp"
+    curl -fsSL "https://ftp.gnu.org/gnu/bison/bison-$BISON_VERSION.tar.gz" | tar xz
+    cd "bison-$BISON_VERSION"
+    ./configure --prefix="$HOME" >/dev/null
+    make -j"$(nproc)" >/dev/null
+    make install >/dev/null
+  ) || { echo "!!! bison build failed — build it by hand." >&2; rm -rf "$tmp"; return; }
+  rm -rf "$tmp"
+
+  # CUBRID's build invokes `yacc`; GNU bison provides it via -y.
+  cat > "$HOME/bin/yacc" <<'YACC'
+#! /bin/sh
+exec "$HOME/bin/bison" -y "$@"
+YACC
+  chmod +x "$HOME/bin/yacc"
+  echo ">>> bison installed: $("$HOME/bin/bison" --version | head -n1)"
+}
+
+# ---------------------------------------------------------------------------
+# ~/bin — extensionless aliases
+# chezmoi already deploys bin/ to ~/bin as real files, so nothing here installs
+# the scripts themselves. It only adds the names they are actually typed with:
+# `cl-tabs`, not `cl-tabs.sh`. Anything already sitting at the alias name is
+# left alone.
+# ---------------------------------------------------------------------------
+install_local_bin() {
+  [ -d "$HOME/bin" ] || { echo ">>> ~/bin missing (run chezmoi apply first), skipping."; return; }
+  echo ">>> Adding extensionless aliases in ~/bin..."
+  local f base alias_name
+  for f in "$HOME"/bin/*.sh; do
+    [ -f "$f" ] || continue
+    chmod +x "$f"
+    base="$(basename "$f")"
+    alias_name="${base%.sh}"
+    if [ -e "$HOME/bin/$alias_name" ]; then
+      continue
+    fi
+    ln -s "$base" "$HOME/bin/$alias_name"
+    echo "    - $alias_name -> $base"
+  done
+  # cl-tabs also answers to clc-tabs (the claude-cubrid config dir variant).
+  [ -f "$HOME/bin/cl-tabs.sh" ] && [ ! -e "$HOME/bin/clc-tabs" ] \
+    && ln -s cl-tabs.sh "$HOME/bin/clc-tabs"
+  return 0
+}
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 print_summary() {
@@ -619,6 +805,12 @@ print_summary() {
   command -v tailscale  &>/dev/null && echo "tailscale : $(tailscale --version | head -n1)"                || echo "tailscale : not found"
   command -v gh         &>/dev/null && echo "gh        : $(gh --version | head -n1)"                      || echo "gh        : not found"
   command -v rtk        &>/dev/null && echo "rtk       : $(rtk --version 2>/dev/null | head -n1)"         || echo "rtk       : not found"
+  command -v snip       &>/dev/null && echo "snip      : $(snip --version 2>/dev/null | head -n1)"        || echo "snip      : not found"
+  command -v node       &>/dev/null && echo "node      : $(node --version)"                               || echo "node      : not found"
+  command -v codex      &>/dev/null && echo "codex     : $(codex --version 2>/dev/null | head -n1)"       || echo "codex     : not found"
+  [ -x "$HOME/bin/bison" ] && echo "bison     : $("$HOME/bin/bison" --version | head -n1) (~/bin)" || echo "bison     : not in ~/bin"
+  command -v ant        &>/dev/null && echo "ant       : $(ant -version 2>/dev/null | head -n1)"          || echo "ant       : not found"
+  command -v cubrid-jira-fetch &>/dev/null && echo "jira-fetch: installed"                                || echo "jira-fetch: not found"
   command -v abtop      &>/dev/null && echo "abtop     : $(abtop --version 2>/dev/null | head -n1)"       || echo "abtop     : not found"
   command -v claude &>/dev/null && echo "claude : $(claude --version | head -n1)" || echo "claude : not found"
   command -v omc    &>/dev/null && echo "omc    : $(omc --version 2>/dev/null || echo 'installed')" || echo "omc    : not found"
@@ -659,12 +851,17 @@ main() {
   install_direnv
   install_fzf
   install_just
+  install_nvm
   install_tmux
   install_alacritty
   install_tailscale
   install_gh
   install_rtk
+  install_snip
   install_abtop
+  install_uv_tools
+  install_bison_cubrid
+  install_local_bin
   install_claude_settings
   install_karpathy_skills
   install_scaffold_skills
