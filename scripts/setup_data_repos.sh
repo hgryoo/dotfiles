@@ -63,13 +63,13 @@ MANIFEST=(
 
   # --- cub_sys : cubrid-systems working repos ---
   "cub_sys|cub_sys/cubrid||https://github.com/cubrid-systems/cubrid|"
-  "cub_sys|cub_sys/benchbase|cubrid-p1|https://github.com/cubrid-systems/benchbase.git|"
+  "cub_sys|cub_sys/benchbase|main|https://github.com/cubrid-systems/benchbase.git|"
   "cub_sys|cub_sys/cubrid-dev-docs|main|https://github.com/cubrid-systems/cubrid-dev-docs|"
   "cub_sys|cub_sys/cubrid-engine-suite|main|https://github.com/cubrid-systems/cubrid-engine-suite|"
   "cub_sys|cub_sys/cubrid-testkit|main|https://github.com/cubrid-systems/cubrid-testkit.git|"
-  "cub_sys|cub_sys/cubrid-testtools|feature/ai_support|https://github.com/cubrid-systems/cubrid-testtools|"
+  "cub_sys|cub_sys/cubrid-testtools|develop|https://github.com/cubrid-systems/cubrid-testtools|"
   "cub_sys|cub_sys/.github|main|https://github.com/cubrid-systems/.github|"
-  "cub_sys|cub_sys/HammerDB|cubrid-p1|https://github.com/cubrid-systems/HammerDB.git|"
+  "cub_sys|cub_sys/HammerDB|main|https://github.com/cubrid-systems/HammerDB.git|"
   "cub_sys|cub_sys/roadmap|main|https://github.com/cubrid-systems/roadmap.git|"
 
   # --- hgryoo : personal + knowledge-base repos ---
@@ -166,6 +166,23 @@ if in_group cubrid_cv && [ -d "$DATA_ROOT/cubrid_cv" ]; then
   # cubrid_cv/workspace -> /data/workspace  (target provisioned separately)
   ln -sfn "$DATA_ROOT/workspace" "$DATA_ROOT/cubrid_cv/workspace"
   echo ">>> link   cubrid_cv/workspace -> $DATA_ROOT/workspace"
+fi
+
+# cubrid-testtools keeps two remotes: origin is the cubrid-systems fork this
+# manifest clones, and the branch actually worked on (feature/ai_support) lives
+# on cubrid/cubrid-testtools, which the clone knows nothing about.
+if in_group cub_sys && [ -d "$DATA_ROOT/cub_sys/cubrid-testtools/.git" ]; then
+  tt="$DATA_ROOT/cub_sys/cubrid-testtools"
+  if ! git -C "$tt" remote | grep -qx upstream; then
+    git -C "$tt" remote add upstream https://github.com/cubrid/cubrid-testtools
+    echo ">>> remote cubrid-testtools upstream -> cubrid/cubrid-testtools"
+  fi
+  git -C "$tt" fetch -q upstream 2>/dev/null || true
+  if [ "$(git -C "$tt" rev-parse --abbrev-ref HEAD)" != "feature/ai_support" ] \
+     && git -C "$tt" rev-parse --verify --quiet upstream/feature/ai_support >/dev/null; then
+    git -C "$tt" checkout -q -B feature/ai_support --track upstream/feature/ai_support \
+      && echo ">>> checkout cubrid-testtools feature/ai_support (upstream)"
+  fi
 fi
 
 if in_group cub_sys && [ -d "$DATA_ROOT/cub_sys" ]; then
