@@ -296,8 +296,28 @@ install_ohmybash() {
     return
   fi
   echo ">>> Installing oh-my-bash..."
+  # The installer always replaces ~/.bashrc with its own template — it has no
+  # --keep-bashrc — and moves the old one to ~/.bashrc.omb-backup-<stamp>.
+  # That silently discards the chezmoi-managed .bashrc, taking with it the
+  # secrets export, the nvm block and the PATH entries; the only sign is that
+  # things stop being set. Ours already sources $OSH/oh-my-bash.sh, so there is
+  # nothing in the template we need. Put ours back.
+  local before after
+  before=$(ls -1d "$HOME"/.bashrc.omb-backup-* 2>/dev/null | wc -l)
   bash -c "$(curl -fsSL https://raw.githubusercontent.com/ohmybash/oh-my-bash/master/tools/install.sh)" \
     --unattended
+  after=$(ls -1d "$HOME"/.bashrc.omb-backup-* 2>/dev/null | wc -l)
+  if [ "$after" -gt "$before" ]; then
+    local backup
+    backup=$(ls -1dt "$HOME"/.bashrc.omb-backup-* 2>/dev/null | head -n1)
+    if [ -f "$backup" ] && grep -q 'oh-my-bash.sh' "$backup"; then
+      mv -f "$backup" "$HOME/.bashrc"
+      echo ">>> Restored the managed ~/.bashrc that oh-my-bash replaced."
+    else
+      echo "!!! oh-my-bash replaced ~/.bashrc and the backup does not look like" >&2
+      echo "    the managed one. Check $backup, then run 'chezmoi apply ~/.bashrc'." >&2
+    fi
+  fi
 }
 
 # ---------------------------------------------------------------------------
