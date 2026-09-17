@@ -326,14 +326,52 @@ install_neovim() {
   echo ">>> Installing Neovim..."
   case "$OS_ID" in
     ubuntu)
-      sudo add-apt-repository ppa:neovim-ppa/stable -y
-      sudo apt-get update -y
-      sudo apt-get install -y neovim
+      # The distro package is the first choice — on a current Ubuntu it is new
+      # enough, and it needs no third-party repository. The PPA exists for the
+      # older LTSs that shipped 0.6/0.7, and it does not publish for a release
+      # until some time after it appears: on 26.04 (resolute) it 404s, and an
+      # add-apt-repository that fails leaves a broken source behind that makes
+      # every later `apt-get update` fail.
+      local want=9 have
+      have=$(apt-cache policy neovim 2>/dev/null | awk '/Candidate:/{print $2}')
+      if [ -n "$have" ] && [ "$have" != "(none)" ] \
+         && [ "$(printf '%s\n' "0.$want" "${have#*:}" | sort -V | head -n1)" = "0.$want" ]; then
+        echo ">>> Using the distro package (neovim $have)."
+        sudo apt-get install -y neovim && return
+      fi
+
+      # Only reach for the PPA when it actually publishes for this release.
+      local codename
+      codename=$(. /etc/os-release && echo "$VERSION_CODENAME")
+      if curl -fsI "https://ppa.launchpadcontent.net/neovim-ppa/stable/ubuntu/dists/$codename/Release" >/dev/null 2>&1; then
+        echo ">>> Distro package too old — adding the neovim PPA."
+        sudo add-apt-repository ppa:neovim-ppa/stable -y
+        sudo apt-get update -y
+        sudo apt-get install -y neovim && return
+      fi
+      echo ">>> No PPA for $codename — installing the official release to ~/.local."
+      install_neovim_tarball
       ;;
     rocky)
-      sudo dnf install -y neovim
+      sudo dnf install -y neovim || install_neovim_tarball
       ;;
   esac
+}
+
+# Official static build, unpacked into ~/.local — no repository, no sudo.
+install_neovim_tarball() {
+  local tmp url
+  url="https://github.com/neovim/neovim/releases/latest/download/nvim-linux-x86_64.tar.gz"
+  tmp="$(mktemp -d)"
+  if curl -fsSL "$url" | tar xz -C "$tmp" --strip-components=1; then
+    mkdir -p "$HOME/.local"
+    cp -a "$tmp"/. "$HOME/.local/"
+    export PATH="$HOME/.local/bin:$PATH"
+    echo ">>> Neovim installed: $(nvim --version 2>/dev/null | head -n1)"
+  else
+    echo "!!! Neovim install failed — install it by hand." >&2
+  fi
+  rm -rf "$tmp"
 }
 
 # ---------------------------------------------------------------------------
