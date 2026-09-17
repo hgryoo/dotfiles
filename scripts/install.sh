@@ -747,7 +747,7 @@ install_snip() {
     return
   fi
   echo ">>> Installing snip..."
-  curl -fsSL https://raw.githubusercontent.com/edouard-claude/snip/main/install.sh | sh
+  curl -fsSL https://raw.githubusercontent.com/edouard-claude/snip/master/install.sh | sh
   export PATH="$HOME/.local/bin:$PATH"
   # Same reason as install_rtk: `snip init` installs a Claude Code hook under
   # ~/.claude, which does not exist yet this early in the run.
