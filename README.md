@@ -88,10 +88,42 @@ bash bootstrap.sh --install-only --kb --local-llm # base + kb + llm
 | `dot_vimrc` | `~/.vimrc` |
 | `dot_config/nvim/init.lua` | `~/.config/nvim/init.lua` |
 | `dot_config/direnv/` | `~/.config/direnv/` |
-| `dot_config/htop/htoprc` | `~/.config/htop/htoprc` |
+| `dot_config/htop/private_htoprc` | `~/.config/htop/htoprc` (mode 600) |
 | `dot_config/Code/User/settings.json` | `~/.config/Code/User/settings.json` |
 | `dot_claude/settings.json` | `~/.claude/settings.json` |
 | `dot_claude/karpathy-skills.md` | `~/.claude/karpathy-skills.md` |
+| `dot_config/alacritty/alacritty.toml` | `~/.config/alacritty/alacritty.toml` |
+| `dot_config/lazygit/config.yml` | `~/.config/lazygit/config.yml` |
+| `dot_config/git/ignore` | `~/.config/git/ignore` |
+| `dot_config/gh/config.yml` | `~/.config/gh/config.yml` (no token — `gh auth login` writes `hosts.yml`) |
+| `dot_config/snip/config.toml` | `~/.config/snip/config.toml` |
+| `dot_config/abtop/config.toml` | `~/.config/abtop/config.toml` |
+| `dot_tmux.conf.local` | `~/.tmux.conf.local` |
+| `bin/` | `~/bin/` |
+
+---
+
+## `~/bin` Scripts
+
+chezmoi copies `bin/` to `~/bin` (already on `PATH` via `.bashrc`).
+`install.sh` then adds the extensionless name each one is actually typed with —
+`cl-tabs`, not `cl-tabs.sh`.
+
+| Script | Purpose |
+|---|---|
+| `cl-tabs.sh` | Gather the Claude tmux sessions under a path into one tabbed session (`clc-tabs` = `.claude-cubrid` variant) |
+| `cubrid-clone.sh` | Clone cubrid/cubrid and register the origin / hgryoo / cub_sys remotes |
+| `clean-cores` | Delete core **dump files** only — never a directory named `core` |
+| `data-usage` | Per-directory disk usage for a path, largest first |
+| `disk-reclaim.sh` | Reclaim space losslessly: shrink ext4 reserved blocks, drop regenerable caches |
+| `oom-fix.sh` | Post-OOM hardening: earlyoom, systemd-oomd, swappiness, swap resize |
+| `connect-vpn.sh` | CUBRID openfortivpn — credentials from `~/.secrets.env` |
+| `connect-aws.sh` | cubvec EC2 SSH — host from `~/.secrets.env`, key file copied by hand |
+| `connect-perf.sh` | Perf server SSH — host/password from `~/.secrets.env` |
+
+> The `connect-*` scripts carry **no** credentials. They read `~/.secrets.env`,
+> which is a symlink to the git-ignored `secrets.env`. `scripts/setup.sh`
+> prompts for the values and creates the link.
 
 ---
 
@@ -112,7 +144,12 @@ bash bootstrap.sh --install-only --kb --local-llm # base + kb + llm
 | just | curl installer |
 | gh (GitHub CLI) | apt repo / dnf repo |
 | [rtk](https://github.com/rtk-ai/rtk) | curl installer |
+| [snip](https://github.com/edouard-claude/snip) | curl installer + `snip init` |
+| nvm + Node (`NODE_VERSION`, default 24) | curl installer |
+| npm globals: codex, openclaw, sisyphus, marp-cli, mermaid-cli, slides-grab | npm |
+| bison 3.0.5 → `~/bin` (CUBRID; distro 3.8 does not build it) | source build |
 | markitdown | `uv tool install` |
+| cubrid-jira-fetcher, copyparty, openai-whisper | `uv tool install` |
 | lazydiff | `cargo install` |
 | lazygit | GitHub release binary |
 | [Claude Code](https://claude.ai) | curl installer |
@@ -200,5 +237,24 @@ cp secrets.env.template secrets.env
 $EDITOR secrets.env
 ```
 
-Keys managed: `ANTHROPIC_API_KEY`, `GITHUB_TOKEN`, `HUGGINGFACE_TOKEN`,
-`JIRA_URL/USERNAME/PASSWORD`, `GOOGLE_CLIENT_ID/SECRET`.
+Or let `scripts/setup.sh` prompt for each value; it writes `secrets.env`,
+chmods it 600, and links it as `~/.secrets.env` so `.bashrc` picks it up.
+
+Keys managed:
+
+| Group | Keys |
+|---|---|
+| API | `ANTHROPIC_API_KEY`, `GITHUB_TOKEN`, `HUGGINGFACE_TOKEN` |
+| JIRA | `JIRA_URL`, `JIRA_USERNAME`, `JIRA_PASSWORD` |
+| Google | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` |
+| Open Notebook | `OPEN_NOTEBOOK_ENCRYPTION_KEY` |
+| CUBRID VPN | `CUBRID_VPN_GATEWAY`, `CUBRID_VPN_USERNAME`, `CUBRID_VPN_CERT`, `CUBRID_VPN_PASSWORD` |
+| Remote hosts | `CUBVEC_EC2_HOST`, `CUBVEC_EC2_KEY`, `PERF_HOST`, `PERF_PASSWORD` |
+
+Two things `secrets.env` cannot carry, because they are files rather than
+values — copy them from the old machine by hand:
+
+```sh
+scp <old-host>:~/cubvec_keypair1.pem ~/ && chmod 400 ~/cubvec_keypair1.pem
+scp -r <old-host>:~/.ssh/ ~/            # keys, known_hosts, config
+```
