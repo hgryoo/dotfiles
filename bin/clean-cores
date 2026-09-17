@@ -1,0 +1,118 @@
+#!/usr/bin/env bash
+#
+# clean-cores - 코어덤프 파일만 안전하게 골라 삭제한다.
+#
+# 배경:
+#   2026-09-09 01:16, `find <경로> -name core -exec rm -rf {} +` 류의 스윕이
+#   node_modules / site-packages / lua 모듈 안의 `core` **디렉터리**까지 지워
+#   VS Code 서버, npm, gcloud, nvim, whisper 등 273곳이 손상됐다.
+#   (undici/lib/core, zod/v4/core, @sigstore/core, googlecloudsdk/core,
+#    lazy.nvim/lua/lazy/core, numba/core, pandas/core ...)
+#
+# 안전 장치:
+#   1) -type f 만 본다        → 디렉터리는 어떤 경우에도 건드리지 않는다
+#   2) file(1) 로 ELF core 확인 → 이름이 아니라 내용으로 판정한다
+#   3) 기본 dry-run           → 실제 삭제는 --force 를 줘야 한다
+#   4) 경로 필수              → 기본 경로 없음 (실수로 / 를 훑지 않는다)
+#   5) 크기 하한 (기본 1MB)    → 작은 동명 파일을 배제한다
+#
+# Usage:
+#   clean-cores <경로>... [옵션]
+#
+#   --force            실제로 삭제한다 (기본은 목록만 출력)
+#   --min-size SIZE    이 크기 이상만 (find -size 문법, 기본 1M)
+#   --older-than DAYS  N일보다 오래된 것만
+#   -h, --help         도움말
+#
+# 예시:
+#   clean-cores /data/workspace                  # 무엇이 지워질지 확인
+#   clean-cores /data/workspace --force          # 실제 삭제
+#   clean-cores /data --older-than 7 --force     # 7일 이상 된 것만
+
+set -uo pipefail
+
+FORCE=0
+MIN_SIZE="1M"
+OLDER_THAN=""
+PATHS=()
+
+usage() {
+  awk 'NR==1{next} /^#/{sub(/^# ?/,""); print; next} {exit}' "$0"
+  exit "${1:-0}"
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --force)       FORCE=1; shift ;;
+    --min-size)    [[ $# -ge 2 ]] || { echo "오류: --min-size 에 값이 필요합니다." >&2; exit 2; }
+                   MIN_SIZE="$2"; shift 2 ;;
+    --older-than)  [[ $# -ge 2 ]] || { echo "오류: --older-than 에 일수가 필요합니다." >&2; exit 2; }
+                   OLDER_THAN="$2"; shift 2 ;;
+    -h|--help)     usage 0 ;;
+    -*)            echo "오류: 알 수 없는 옵션 $1" >&2; usage 2 ;;
+    *)             PATHS+=("$1"); shift ;;
+  esac
+done
+
+if [[ ${#PATHS[@]} -eq 0 ]]; then
+  echo "오류: 검사할 경로를 지정해야 합니다." >&2
+  echo "      예: clean-cores /data/workspace" >&2
+  exit 2
+fi
+
+for p in "${PATHS[@]}"; do
+  if [[ ! -d "$p" ]]; then
+    echo "오류: 디렉터리가 아닙니다: $p" >&2
+    exit 2
+  fi
+  if [[ "$(readlink -f "$p")" == "/" ]]; then
+    echo "오류: / 전체는 대상으로 삼을 수 없습니다." >&2
+    exit 2
+  fi
+done
+
+# find 조건 조립.
+#   -type f      : 디렉터리 제외 (이번 사고의 핵심 방지책)
+#   -xdev        : 다른 파일시스템으로 넘어가지 않는다
+#   이름 후보는 넓게 잡고, 최종 판정은 file(1) 에 맡긴다.
+FIND_ARGS=(-xdev -type f -size "+$MIN_SIZE")
+[[ -n "$OLDER_THAN" ]] && FIND_ARGS+=(-mtime "+$OLDER_THAN")
+FIND_ARGS+=(\( -name 'core' -o -name 'core.*' -o -name '*.core' -o -name '*.coredump' \))
+
+total=0; matched=0; bytes=0
+declare -a VICTIMS=()
+
+while IFS= read -r -d '' f; do
+  total=$((total + 1))
+  # 내용으로 판정: ELF core dump 가 아니면 건너뛴다.
+  desc=$(file -b -- "$f" 2>/dev/null)
+  case "$desc" in
+    *"ELF"*"core file"*)
+      sz=$(stat -c '%s' -- "$f" 2>/dev/null || echo 0)
+      VICTIMS+=("$f")
+      matched=$((matched + 1)); bytes=$((bytes + sz))
+      printf '  %8s  %s\n' "$(numfmt --to=iec --suffix=B "$sz" 2>/dev/null || echo "$sz")" "$f"
+      ;;
+    *)
+      printf '  %8s  %s\n' "skip" "$f  (코어덤프 아님: ${desc:0:40})" ;;
+  esac
+done < <(find "${PATHS[@]}" "${FIND_ARGS[@]}" -print0 2>/dev/null)
+
+echo
+echo "이름 후보 $total 개 중 실제 코어덤프 $matched 개 ($(numfmt --to=iec --suffix=B "$bytes" 2>/dev/null || echo "$bytes"))"
+
+if [[ $matched -eq 0 ]]; then
+  echo "삭제할 것이 없습니다."
+  exit 0
+fi
+
+if [[ $FORCE -eq 0 ]]; then
+  echo
+  echo "dry-run 입니다. 실제로 지우려면 --force 를 붙이세요."
+  exit 0
+fi
+
+for f in "${VICTIMS[@]}"; do
+  rm -f -- "$f" && echo "삭제: $f"
+done
+echo "완료: $matched 개 삭제"

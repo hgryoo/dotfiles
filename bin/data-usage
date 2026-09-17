@@ -1,0 +1,129 @@
+#!/usr/bin/env bash
+#
+# data-usage - /data 경로의 디스크 용량을 추적/표시한다.
+#
+#   1) 대상 경로가 속한 파일시스템의 남은 용량
+#   2) 대상 경로 바로 아래 디렉토리별 사용량 (전체 정렬)
+#   3) 용량이 큰 디렉토리 상위 N개
+#
+# Usage:
+#   data-usage [경로] [-n TOP] [-a] [-h]
+#
+#   경로        검사할 경로 (기본: /data)
+#   -n, --top N  "큰 디렉토리" 표시 개수 (기본: 10)
+#   -a, --all    숨김(.) 디렉토리도 포함
+#   -h, --help   도움말
+#
+# 예시:
+#   data-usage                 # /data 전체 요약
+#   data-usage /data -n 20     # 상위 20개까지
+#   data-usage /home/hgryoo -a # 다른 경로 + 숨김 포함
+
+set -euo pipefail
+
+TARGET="/data"
+TOP=10
+INCLUDE_HIDDEN=0
+
+usage() {
+  # 파일 상단의 연속된 주석(#) 헤더 블록만 출력한다 (shebang 다음부터,
+  # 첫 비주석 줄에서 멈춤).
+  awk 'NR==1{next} /^#/{sub(/^# ?/,""); print; next} {exit}' "$0"
+  exit "${1:-0}"
+}
+
+# --- 인자 파싱 ---------------------------------------------------------------
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -n|--top)
+      [[ $# -ge 2 ]] || { echo "오류: $1 옵션에 숫자가 필요합니다." >&2; exit 2; }
+      TOP="$2"; shift 2 ;;
+    -a|--all)
+      INCLUDE_HIDDEN=1; shift ;;
+    -h|--help)
+      usage 0 ;;
+    -*)
+      echo "오류: 알 수 없는 옵션 '$1'" >&2; usage 2 ;;
+    *)
+      TARGET="$1"; shift ;;
+  esac
+done
+
+if ! [[ "$TOP" =~ ^[0-9]+$ ]] || [[ "$TOP" -eq 0 ]]; then
+  echo "오류: -n 값은 1 이상의 정수여야 합니다 (입력: '$TOP')." >&2
+  exit 2
+fi
+
+if [[ ! -d "$TARGET" ]]; then
+  echo "오류: '$TARGET' 는 존재하지 않는 디렉토리입니다." >&2
+  exit 1
+fi
+
+# 절대경로로 정규화
+TARGET="$(cd "$TARGET" && pwd)"
+
+# 색상 (터미널일 때만)
+if [[ -t 1 ]]; then
+  BOLD=$'\033[1m'; DIM=$'\033[2m'; RST=$'\033[0m'
+else
+  BOLD=''; DIM=''; RST=''
+fi
+
+hr() { printf '%s\n' "$DIM----------------------------------------------------------------$RST"; }
+
+# --- 1) 파일시스템 남은 용량 -------------------------------------------------
+printf '%s\n' "${BOLD}▶ 파일시스템 용량  ($TARGET)${RST}"
+hr
+df -h "$TARGET"
+echo
+
+# --- 디렉토리 목록 수집 ------------------------------------------------------
+# du 를 한 번만 실행해서 재사용 (경로별 사용량, 바이트 단위 정렬용 -B1)
+find_opts=(-mindepth 1 -maxdepth 1 -type d)
+mapfile -t DIRS < <(
+  if [[ "$INCLUDE_HIDDEN" -eq 1 ]]; then
+    find "$TARGET" "${find_opts[@]}" -print
+  else
+    find "$TARGET" "${find_opts[@]}" ! -name '.*' -print
+  fi
+)
+
+if [[ "${#DIRS[@]}" -eq 0 ]]; then
+  echo "${DIM}(하위 디렉토리 없음)${RST}"
+  exit 0
+fi
+
+# 각 디렉토리 크기를 바이트로 계산 (권한 오류는 조용히 무시)
+# du 는 접근 불가 하위 항목에서 exit 1 을 내므로 pipefail+errexit 아래에서
+# 중단되지 않도록 '|| true' 로 파이프라인 실패를 흡수한다.
+# 결과: "<bytes>\t<path>"
+USAGE_RAW="$(du -sB1 "${DIRS[@]}" 2>/dev/null | sort -rn || true)"
+
+# 사람이 읽는 크기로 변환하는 헬퍼
+human() {
+  numfmt --to=iec --suffix=B --padding=8 "$1" 2>/dev/null || printf '%s' "$1"
+}
+
+# --- 2) 디렉토리별 사용량 (전체, 큰 순) --------------------------------------
+printf '%s\n' "${BOLD}▶ 디렉토리별 사용량  (큰 순, 전체 ${#DIRS[@]}개)${RST}"
+hr
+total_bytes=0
+while IFS=$'\t' read -r bytes path; do
+  [[ -z "${bytes:-}" ]] && continue
+  total_bytes=$(( total_bytes + bytes ))
+  printf '  %10s  %s\n' "$(human "$bytes")" "${path#"$TARGET"/}"
+done <<< "$USAGE_RAW"
+hr
+printf '  %10s  %s\n' "$(human "$total_bytes")" "${BOLD}합계 (하위 디렉토리 기준)${RST}"
+echo
+
+# --- 3) 용량이 큰 디렉토리 상위 N개 ------------------------------------------
+printf '%s\n' "${BOLD}▶ 용량이 큰 디렉토리 TOP ${TOP}${RST}"
+hr
+rank=0
+while IFS=$'\t' read -r bytes path; do
+  [[ -z "${bytes:-}" ]] && continue
+  rank=$(( rank + 1 ))
+  [[ "$rank" -gt "$TOP" ]] && break
+  printf '  %2d.  %10s  %s\n' "$rank" "$(human "$bytes")" "${path#"$TARGET"/}"
+done <<< "$USAGE_RAW"
