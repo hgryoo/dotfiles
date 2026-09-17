@@ -73,7 +73,13 @@ bash bootstrap.sh --install-only --kb --local-llm # base + kb + llm
 | `scripts/auth.sh` | Interactive OAuth login for services |
 | `scripts/setup.sh` | One-time personalization: git config, env vars, summary |
 | `scripts/setup_data_repos.sh` | Clone Claude knowledge repos into `/data` (cubrid_cv, cub_sys, hgryoo, references) |
+| `scripts/sync_repos.sh` | Fetch every git repo under `/data`, report ahead/behind/dirty; `--pull` fast-forwards what can move |
 | `scripts/sync_knowledge.sh` | rsync `~/obsidian/ ↔ ~/knowledge/` (`pull`/`push`) |
+
+`setup_data_repos.sh` also builds **`/data/ops`**, a directory of symlinks to
+every script that manages this machine's `/data` — the ones above plus the
+workspace scripts owned by `cubrid_cv/scaffold`. See `ops/README.md` for the
+table and the order to run them in on a fresh machine.
 
 ---
 
