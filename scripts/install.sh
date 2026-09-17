@@ -496,7 +496,11 @@ install_rtk() {
   echo ">>> Installing rtk..."
   curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh
   export PATH="$HOME/.local/bin:$PATH"
-  rtk init -g
+  # `rtk init -g` writes ~/.claude/RTK.md, and install_claude_settings — which
+  # creates that directory — runs later. On a fresh machine rtk aborts the run:
+  #   Failed to write RTK.md: … No such file or directory
+  mkdir -p "$HOME/.claude"
+  rtk init -g || echo "!!! rtk init failed — run 'rtk init -g' by hand." >&2
 }
 
 # ---------------------------------------------------------------------------
@@ -745,8 +749,14 @@ install_snip() {
   echo ">>> Installing snip..."
   curl -fsSL https://raw.githubusercontent.com/edouard-claude/snip/main/install.sh | sh
   export PATH="$HOME/.local/bin:$PATH"
-  command -v snip &>/dev/null && snip init \
-    || echo "!!! snip not on PATH after install — run 'snip init' by hand." >&2
+  # Same reason as install_rtk: `snip init` installs a Claude Code hook under
+  # ~/.claude, which does not exist yet this early in the run.
+  mkdir -p "$HOME/.claude"
+  if command -v snip &>/dev/null; then
+    snip init || echo "!!! snip init failed — run 'snip init' by hand." >&2
+  else
+    echo "!!! snip not on PATH after install — run 'snip init' by hand." >&2
+  fi
 }
 
 # ---------------------------------------------------------------------------
