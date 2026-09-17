@@ -13,3 +13,12 @@
 # three extra commands to find out what broke. go-build and go-vet are left on:
 # both pass their errors through unchanged, which is checked and true.
 go-test = false
+
+[economics.tiers]
+# Prices in $ per 1M input tokens, used by `snip cc-economics`.
+# Anthropic list prices as of 2026-08; uncomment and adjust to your
+# negotiated rates. Names are free-form.
+# haiku = 1.00
+# sonnet = 3.00
+# opus = 5.00
+# fable = 10.00
