@@ -119,6 +119,15 @@ setup_secrets() {
   _ask_secret CUBRID_VPN_PASSWORD "CUBRID_VPN_PASSWORD (blank = prompt each time)"
 
   echo
+  echo "[Tailscale]"
+  _ask_secret TAILSCALE_AUTH_KEY "TAILSCALE_AUTH_KEY (blank = run 'tailscale up' by hand)"
+
+  echo
+  echo "[copyparty]"
+  _ask        COPYPARTY_USERNAME "COPYPARTY_USERNAME"
+  _ask_secret COPYPARTY_PASSWORD "COPYPARTY_PASSWORD"
+
+  echo
   echo "[Remote hosts — used by bin/connect-aws.sh, bin/connect-perf.sh]"
   _ask        CUBVEC_EC2_HOST "CUBVEC_EC2_HOST (user@host)"
   _ask        PERF_HOST       "PERF_HOST (user@host)"
@@ -144,6 +153,9 @@ CUBRID_VPN_PASSWORD=${CUBRID_VPN_PASSWORD:-}
 CUBVEC_EC2_HOST=${CUBVEC_EC2_HOST:-}
 PERF_HOST=${PERF_HOST:-}
 PERF_PASSWORD=${PERF_PASSWORD:-}
+TAILSCALE_AUTH_KEY=${TAILSCALE_AUTH_KEY:-}
+COPYPARTY_USERNAME=${COPYPARTY_USERNAME:-}
+COPYPARTY_PASSWORD=${COPYPARTY_PASSWORD:-}
 EOF
   chmod 600 "$SECRETS_FILE"
 

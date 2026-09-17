@@ -581,11 +581,28 @@ install_alacritty() {
 # ---------------------------------------------------------------------------
 install_tailscale() {
   if command -v tailscale &>/dev/null; then
-    echo ">>> Tailscale already installed ($(tailscale --version | head -n1)), skipping."
+    echo ">>> Tailscale already installed ($(tailscale --version | head -n1)), skipping install."
+  else
+    echo ">>> Installing Tailscale..."
+    curl -fsSL https://tailscale.com/install.sh | sh
+  fi
+
+  # Joining is the part that matters on a fresh machine, and it is the part
+  # that wants a browser. An auth key in secrets.env removes that round trip.
+  if tailscale status &>/dev/null; then
+    echo ">>> Tailscale already on the tailnet ($(tailscale status --self --peers=false 2>/dev/null | awk '{print $2}' | head -n1))."
     return
   fi
-  echo ">>> Installing Tailscale..."
-  curl -fsSL https://tailscale.com/install.sh | sh
+  local secrets="$SCRIPT_DIR/../secrets.env"
+  # shellcheck disable=SC1090
+  [ -f "$secrets" ] && . "$secrets"
+  if [ -n "${TAILSCALE_AUTH_KEY:-}" ]; then
+    echo ">>> Joining the tailnet with the key from secrets.env..."
+    sudo tailscale up --auth-key="$TAILSCALE_AUTH_KEY" --ssh \
+      || echo "!!! tailscale up failed — the key may be expired. Run 'sudo tailscale up' by hand." >&2
+  else
+    echo ">>> TAILSCALE_AUTH_KEY not set — run 'sudo tailscale up' to join."
+  fi
 }
 
 # ---------------------------------------------------------------------------

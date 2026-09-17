@@ -20,6 +20,8 @@ workspace
 workspace/**
 scripts
 scripts/**
+secrets.env
+secrets.env.template
 bash
 bash/**
 vim
