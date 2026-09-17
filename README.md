@@ -74,12 +74,21 @@ bash bootstrap.sh --install-only --kb --local-llm # base + kb + llm
 | `scripts/setup.sh` | One-time personalization: git config, env vars, summary |
 | `scripts/setup_data_repos.sh` | Clone Claude knowledge repos into `/data` (cubrid_cv, cub_sys, hgryoo, references) |
 | `scripts/sync_repos.sh` | Fetch every git repo under `/data`, report ahead/behind/dirty; `--pull` fast-forwards what can move |
+| `scripts/setup_workspace.sh` | Rebuild the `/data/workspace` skeleton from `workspace/manifest.txt`; `--emit` regenerates it |
+| `scripts/workspace_rearrange.sh` | Tier `/data/workspace` by what a directory holds (`repos/ wt/ build/ runs/ harness/ topic/ archive/`) |
+| `scripts/workspace_reclaim.sh` | Delete what a named command remakes — build trees, install prefixes |
 | `scripts/sync_knowledge.sh` | rsync `~/obsidian/ ↔ ~/knowledge/` (`pull`/`push`) |
 
+`workspace/` holds what those three read and write: `manifest.txt` (51
+worktrees · 17 clones · 400 directories), plus `CLAUDE.md` and `README.md`,
+which are symlinked into `/data/workspace/` so an agent working there finds
+them.
+
 `setup_data_repos.sh` also builds **`/data/ops`**, a directory of symlinks to
-every script that manages this machine's `/data` — the ones above plus the
-workspace scripts owned by `cubrid_cv/scaffold`. See `ops/README.md` for the
-table and the order to run them in on a fresh machine.
+every script above. It is the answer to "which repo was that script in" — the
+answer is always this one. `cubrid_cv/scaffold` is deliberately not linked
+there: it is tooling for the vault and its siblings, not for `/data`'s shape.
+See `ops/README.md` for the table and the fresh-machine order.
 
 ---
 

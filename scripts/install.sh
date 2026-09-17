@@ -10,7 +10,7 @@
 #   bash install.sh --all        # everything
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 OPT_KB=false
 OPT_LLM=false
 OPT_GCLOUD_ONLY=false
@@ -137,7 +137,7 @@ install_base_rocky() {
 # ---------------------------------------------------------------------------
 install_claude_settings() {
   local repo_root
-  repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  repo_root="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
   local src="$repo_root/dot_claude/settings.json"
   local dst="$HOME/.claude/settings.json"
 
@@ -177,7 +177,7 @@ install_claude_settings() {
 # ---------------------------------------------------------------------------
 install_karpathy_skills() {
   local repo_root
-  repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  repo_root="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
   local src="$repo_root/dot_claude/karpathy-skills.md"
   local dst="$HOME/.claude/CLAUDE.md"
   local marker="# Andrej Karpathy Skills"

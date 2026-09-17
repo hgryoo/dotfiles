@@ -4,25 +4,28 @@ Every file here is a **symlink into the repo that owns it**. Edit the target,
 commit it there; this directory is only the place you look when you do not
 remember which repo a script lives in.
 
-Two owners, and the split is about what may be public:
+One owner: **`~/dotfiles`**. Everything that manages this machine's `/data` —
+the install, the repo clones, the workspace shape — lives there.
 
-- `~/dotfiles` (**public**) — machine setup. Nothing in it names a branch, a
-  ticket or an internal host; credentials live in the git-ignored `secrets.env`.
-- `/data/cubrid_cv/scaffold` (**private**) — the shape of the CUBRID work.
-  The workspace manifest carries branch names like `CBRD-27034`, so it does not
-  go in a public repo.
+`/data/cubrid_cv/scaffold` is deliberately **not** linked here. It is tooling
+for the vault and its siblings (book builds, the markdown lint, the CUBRID
+skills, `build_cubrid.sh`, `cubconf`), not for `/data`'s shape. Ask for it by
+its own path.
 
-| here | owner | what it does |
+Credentials are in neither: `secrets.env` is git-ignored and `~/.ssh` is not in
+any repo.
+
+| here | source | what it does |
 |---|---|---|
 | `bootstrap.sh` | dotfiles | single entry point on a fresh machine: chezmoi apply + install + auth + setup |
 | `install.sh` | dotfiles | packages and toolchains (CUBRID build deps, bison 3.0.5, nvm, snip, uv tools) |
 | `setup.sh` | dotfiles | interactive personalisation — git config, and every key in `secrets.env` |
 | `setup_data_repos.sh` | dotfiles | clone `cubrid_cv`, `cub_sys/*`, `hgryoo/*` into `/data` |
 | `sync_repos.sh` | dotfiles | fetch every repo under `/data`, report ahead/behind/dirty, `--pull` to fast-forward |
-| `setup_workspace.sh` | scaffold | rebuild the `/data/workspace` skeleton from the manifest |
-| `workspace_rearrange.sh` | scaffold | tier `/data/workspace` by what a directory holds |
-| `workspace_reclaim.sh` | scaffold | delete what a named command remakes — builds, install prefixes |
-| `workspace-manifest.txt` | scaffold | 51 worktrees · 17 clones · 400 directories |
+| `setup_workspace.sh` | dotfiles | rebuild the `/data/workspace` skeleton from the manifest |
+| `workspace_rearrange.sh` | dotfiles | tier `/data/workspace` by what a directory holds |
+| `workspace_reclaim.sh` | dotfiles | delete what a named command remakes — builds, install prefixes |
+| `workspace-manifest.txt` | dotfiles | `workspace/manifest.txt` — 51 worktrees · 17 clones · 400 directories |
 
 ## The order on a new machine
 

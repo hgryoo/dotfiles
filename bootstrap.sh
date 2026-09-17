@@ -12,7 +12,7 @@
 #   bash bootstrap.sh --install-only # skip chezmoi, run install.sh only
 set -euo pipefail
 
-DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DOTFILES_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 
 OPT_CHEZMOI=true
 OPT_INSTALL=true

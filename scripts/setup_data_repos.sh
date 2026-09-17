@@ -210,14 +210,14 @@ fi
 
 # ---------------------------------------------------------------------------
 # /data/ops — one place to find the scripts that manage this tree
-# Symlinks only: each script stays owned by its repo (dotfiles for machine
-# setup, cubrid_cv/scaffold for the CUBRID work's shape), so editing here edits
-# the repo and there is no second copy to drift.
+# Symlinks only: every script stays owned by this repo, so editing through the
+# hub edits the repo and there is no second copy to drift. cubrid_cv/scaffold
+# is deliberately not linked here — it is tooling for the vault and its
+# siblings (book builds, lint, the CUBRID skills), not for /data's shape.
 # ---------------------------------------------------------------------------
 install_ops_hub() {
-  local ops="$DATA_ROOT/ops" dot scaffold
+  local ops="$DATA_ROOT/ops" dot
   dot="$(cd "$SCRIPT_DIR/.." && pwd)"
-  scaffold="$DATA_ROOT/cubrid_cv/scaffold"
 
   mkdir -p "$ops"
   echo ">>> ops hub: $ops"
@@ -233,10 +233,10 @@ install_ops_hub() {
   link "$dot/scripts/setup_data_repos.sh"        setup_data_repos.sh
   link "$dot/scripts/sync_repos.sh"              sync_repos.sh
   link "$dot/ops/README.md"                      README.md
-  link "$scaffold/scripts/setup_workspace.sh"    setup_workspace.sh
-  link "$scaffold/scripts/workspace_rearrange.sh" workspace_rearrange.sh
-  link "$scaffold/scripts/workspace_reclaim.sh"  workspace_reclaim.sh
-  link "$scaffold/workspace-manifest.txt"        workspace-manifest.txt
+  link "$dot/scripts/setup_workspace.sh"         setup_workspace.sh
+  link "$dot/scripts/workspace_rearrange.sh"     workspace_rearrange.sh
+  link "$dot/scripts/workspace_reclaim.sh"       workspace_reclaim.sh
+  link "$dot/workspace/manifest.txt"             workspace-manifest.txt
   unset -f link
 }
 
