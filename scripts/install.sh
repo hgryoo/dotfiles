@@ -272,13 +272,19 @@ install_uv() {
 # Rust (rustup)
 # ---------------------------------------------------------------------------
 install_rust() {
-  if command -v rustup &>/dev/null; then
+  if ! command -v rustup &>/dev/null; then
+    echo ">>> Installing Rust via rustup..."
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path
+  else
     echo ">>> Rust already installed ($(rustc --version)), updating..."
     rustup update
-    return
   fi
-  echo ">>> Installing Rust via rustup..."
-  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path
+  # --no-modify-path leaves this shell without cargo, and .bashrc's
+  # `. ~/.cargo/env` only helps the *next* shell. install_lazydiff runs two
+  # steps later and calls cargo, so put it on PATH here.
+  # shellcheck disable=SC1091
+  [ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"
+  export PATH="$HOME/.cargo/bin:$PATH"
 }
 
 # ---------------------------------------------------------------------------
@@ -409,6 +415,10 @@ install_markitdown() {
 install_lazydiff() {
   if command -v lazydiff &>/dev/null; then
     echo ">>> lazydiff already installed, skipping."
+    return
+  fi
+  if ! command -v cargo &>/dev/null; then
+    echo "WARNING: cargo not found, cannot install lazydiff." >&2
     return
   fi
   echo ">>> Installing lazydiff..."
