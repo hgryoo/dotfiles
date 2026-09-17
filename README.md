@@ -128,6 +128,13 @@ chezmoi copies `bin/` to `~/bin` (already on `PATH` via `.bashrc`).
 `install.sh` then adds the extensionless name each one is actually typed with —
 `cl-tabs`, not `cl-tabs.sh`.
 
+The source files carry chezmoi's `executable_` prefix, which is how chezmoi
+decides the deployed mode — it reads the prefix, not the file's mode on disk.
+Without it every script deploys as 0644, `install.sh` chmods it, and
+`chezmoi status` then reports permanent drift on all nine. The prefix is
+stripped on deploy, so `bin/executable_connect-vpn.sh` lands as
+`~/bin/connect-vpn.sh`.
+
 | Script | Purpose |
 |---|---|
 | `cl-tabs.sh` | Gather the Claude tmux sessions under a path into one tabbed session (`clc-tabs` = `.claude-cubrid` variant) |
