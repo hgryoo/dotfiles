@@ -49,8 +49,15 @@ export PATH="$HOME/bin:$PATH"
 export PATH="$HOME/.local/bin:$PATH"
 
 # Secrets (API keys, VPN + server credentials) — git-ignored, see
-# dotfiles/secrets.env.template. Sourced so connect_* helpers can read them.
-[ -f "$HOME/.secrets.env" ] && . "$HOME/.secrets.env"
+# dotfiles/secrets.env.template. The file holds bare KEY=value lines, so
+# sourcing it plain would leave shell variables that no child process sees —
+# gh, claude and every script would come up without them. `set -a` marks each
+# assignment for export for the duration of the source.
+if [ -f "$HOME/.secrets.env" ]; then
+  set -a
+  . "$HOME/.secrets.env"
+  set +a
+fi
 
 export ENABLE_LSP_TOOL=1
 
