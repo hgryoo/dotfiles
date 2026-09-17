@@ -143,6 +143,25 @@ else
   echo ">>> clones: skipped (pass --clones to fetch them)"
 fi
 
+# --- 2b. the two documents that tell an agent where to go -----------------
+# workspace/CLAUDE.md is read by Claude Code when it works under this tree, and
+# README.md is the human-facing layout. Both are symlinks into this repo so
+# there is one copy: editing either edits the source, and a `git pull` moves
+# them on every machine at once.
+DOCS_SRC="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)/workspace"
+for doc in CLAUDE.md README.md; do
+  if [ ! -f "$DOCS_SRC/$doc" ]; then
+    echo "!!! $DOCS_SRC/$doc missing — skipping the link." >&2
+    continue
+  fi
+  if [ -e "$ROOT/$doc" ] && [ ! -L "$ROOT/$doc" ]; then
+    echo ">>> $doc exists and is not a symlink — leaving it alone."
+    continue
+  fi
+  run ln -sfn "$DOCS_SRC/$doc" "$ROOT/$doc"
+  echo ">>> link   $doc -> $DOCS_SRC/$doc"
+done
+
 # --- 3. worktrees ---------------------------------------------------------
 # A worktree needs its parent repo on disk and its branch to exist there.
 while IFS= read -r line; do
