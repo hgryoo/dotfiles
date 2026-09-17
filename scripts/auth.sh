@@ -34,12 +34,20 @@ auth_github() {
     echo ">>> Already authenticated: $(gh auth status 2>&1 | grep 'Logged in' || true)"
     return
   fi
-  echo ">>> Logging in to GitHub..."
-  gh auth login
-  # Also export GITHUB_TOKEN if set in secrets
+  # A token in secrets.env is enough to log in, and it is the only way that
+  # works without a browser — which is exactly the case on a machine being
+  # provisioned over ssh.
   if [ -n "${GITHUB_TOKEN:-}" ]; then
-    echo ">>> GITHUB_TOKEN is set in secrets.env (will be persisted by setup.sh)"
+    echo ">>> Logging in to GitHub with the token from secrets.env..."
+    if printf '%s' "$GITHUB_TOKEN" | gh auth login --with-token; then
+      gh auth setup-git
+      echo ">>> $(gh auth status 2>&1 | grep 'Logged in' || true)"
+      return
+    fi
+    echo "!!! Token login failed — falling through to the interactive flow." >&2
   fi
+  echo ">>> Logging in to GitHub (interactive)..."
+  gh auth login
 }
 
 # ---------------------------------------------------------------------------
