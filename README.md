@@ -84,6 +84,10 @@ worktrees · 17 clones · 400 directories), plus `CLAUDE.md` and `README.md`,
 which are symlinked into `/data/workspace/` so an agent working there finds
 them.
 
+`scripts/` is **not** deployed to `$HOME`. Run a script from `/data/ops/` or
+from this repo; a third copy under `~/scripts` had gone five months stale
+without anyone noticing, so it is in `.chezmoiignore` now.
+
 `setup_data_repos.sh` also builds **`/data/ops`**, a directory of symlinks to
 every script above. It is the answer to "which repo was that script in" — the
 answer is always this one. `cubrid_cv/scaffold` is deliberately not linked

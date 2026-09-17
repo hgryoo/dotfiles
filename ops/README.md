@@ -45,6 +45,18 @@ scp <old-host>:~/cubvec_keypair1.pem ~/ && chmod 400 ~/cubvec_keypair1.pem
 scp <old-host>:~/dotfiles/secrets.env ~/dotfiles/
 ```
 
+## Where to run them from
+
+`/data/ops/<script>` or `~/dotfiles/scripts/<script>`. There is no third copy:
+`scripts/` is in `.chezmoiignore`, so `chezmoi apply` does not deploy it to
+`~/scripts`.
+
+It used to. That copy sat frozen at the 2026-04-22 version for five months
+because `chezmoi apply` had not been run since, which meant `~/scripts/install.sh`
+looked runnable and would have installed the April toolchain — no CUBRID build
+requirements, no bison 3.0.5, no nvm, no snip. A stale copy that still runs is
+worse than no copy.
+
 ## Day to day
 
 ```sh

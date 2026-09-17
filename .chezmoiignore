@@ -18,6 +18,8 @@ ops
 ops/**
 workspace
 workspace/**
+scripts
+scripts/**
 bash
 bash/**
 vim
