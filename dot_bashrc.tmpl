@@ -48,6 +48,9 @@ export PATH="$HOME/bin:$PATH"
 # uv tools / chezmoi / snip live here
 export PATH="$HOME/.local/bin:$PATH"
 
+# Secrets (API keys, VPN + server credentials) — git-ignored, see
+# dotfiles/secrets.env.template. Sourced so connect_* helpers can read them.
+[ -f "$HOME/.secrets.env" ] && . "$HOME/.secrets.env"
 
 export ENABLE_LSP_TOOL=1
 
