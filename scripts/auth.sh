@@ -39,9 +39,14 @@ auth_github() {
   # provisioned over ssh.
   if [ -n "${GITHUB_TOKEN:-}" ]; then
     echo ">>> Logging in to GitHub with the token from secrets.env..."
-    if printf '%s' "$GITHUB_TOKEN" | gh auth login --with-token; then
-      gh auth setup-git
-      echo ">>> $(gh auth status 2>&1 | grep 'Logged in' || true)"
+    # gh refuses to store credentials while GITHUB_TOKEN is in the environment
+    # ("The value of the GITHUB_TOKEN environment variable is being used for
+    # authentication"), and .bashrc exports it from secrets.env. Drop it for
+    # these two commands so the login lands in the keyring and git gets a
+    # credential helper that outlives the variable.
+    if printf '%s' "$GITHUB_TOKEN" | env -u GITHUB_TOKEN gh auth login --with-token; then
+      env -u GITHUB_TOKEN gh auth setup-git
+      echo ">>> $(env -u GITHUB_TOKEN gh auth status 2>&1 | grep 'Logged in' || true)"
       return
     fi
     echo "!!! Token login failed — falling through to the interactive flow." >&2
