@@ -1,0 +1,15 @@
+# snip configuration.
+#
+# Written 2026-09-07 while working in cubrid-testkit.
+
+[filters.enable]
+# The go-test filter compresses `go test ./...` to one line -- "140 passed,
+# 1 failed" -- and does not say which test failed or why. The full output is
+# teed to ~/.local/share/snip/tee/, but as `go test -json`, so reading it means
+# parsing JSON rather than reading a failure.
+#
+# The trade is bad in both directions. A passing `go test ./...` prints one line
+# per package, so the filter saves about ten lines; a failing one costs two or
+# three extra commands to find out what broke. go-build and go-vet are left on:
+# both pass their errors through unchanged, which is checked and true.
+go-test = false

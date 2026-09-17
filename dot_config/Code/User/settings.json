@@ -16,5 +16,6 @@
   "markdown-preview-enhanced.breakOnSingleNewLine": false,
   "markdown-preview-enhanced.enableHTML5Embed": true,
   "markdown-preview-enhanced.enableExtendedTableSyntax": true,
-  "markdown-preview-enhanced.useGitHubStylePipedLink": true
+  "markdown-preview-enhanced.useGitHubStylePipedLink": true,
+  "terminal.integrated.initialHint": false
 }
