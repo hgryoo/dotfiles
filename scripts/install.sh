@@ -853,6 +853,74 @@ install_local_bin() {
 }
 
 # ---------------------------------------------------------------------------
+# Korean — fonts, input method, and the CJK language preference
+#
+# Noto Sans CJK is one family with per-language variants, and with nothing to
+# choose between them fontconfig picks by order, not by language: on a fresh
+# 26.04 `fc-match -s :lang=ko` answers "Noto Sans CJK JP". Korean then renders
+# in Japanese glyph forms for every shared Han character. The fix is a
+# fontconfig preference, not another font.
+# ---------------------------------------------------------------------------
+install_korean() {
+  echo ">>> Korean: fonts, ibus-hangul, locale"
+  case "$OS_ID" in
+    ubuntu)
+      local pkgs=(fonts-noto-cjk fonts-noto-cjk-extra ibus-hangul language-pack-ko)
+      # fonts-nanum is worth having for documents; it is not in every release.
+      LC_ALL=C apt-cache policy fonts-nanum 2>/dev/null | grep -q "Candidate: [0-9]" \
+        && pkgs+=(fonts-nanum)
+      sudo DEBIAN_FRONTEND=noninteractive apt-get install -y "${pkgs[@]}"
+      sudo locale-gen ko_KR.UTF-8 >/dev/null
+      ;;
+    rocky)
+      sudo dnf install -y google-noto-sans-cjk-fonts ibus-hangul langpacks-ko
+      ;;
+  esac
+
+  # Prefer the KR variant for Korean text. Without this the JP variant wins and
+  # 漢字 shared with Japanese are drawn in Japanese forms.
+  mkdir -p "$HOME/.config/fontconfig/conf.d"
+  cat > "$HOME/.config/fontconfig/conf.d/60-ko-prefer-cjk-kr.conf" <<'XML'
+<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
+<!-- Written by dotfiles/scripts/install.sh (install_korean).
+     Noto Sans CJK ships one family per language; fontconfig otherwise picks
+     the first it finds, which is the JP variant. -->
+<fontconfig>
+  <match target="pattern">
+    <test name="lang" compare="contains"><string>ko</string></test>
+    <test name="family"><string>sans-serif</string></test>
+    <edit name="family" mode="prepend" binding="strong"><string>Noto Sans CJK KR</string></edit>
+  </match>
+  <match target="pattern">
+    <test name="lang" compare="contains"><string>ko</string></test>
+    <test name="family"><string>serif</string></test>
+    <edit name="family" mode="prepend" binding="strong"><string>Noto Serif CJK KR</string></edit>
+  </match>
+  <match target="pattern">
+    <test name="lang" compare="contains"><string>ko</string></test>
+    <test name="family"><string>monospace</string></test>
+    <edit name="family" mode="prepend" binding="strong"><string>Noto Sans Mono CJK KR</string></edit>
+  </match>
+</fontconfig>
+XML
+  fc-cache -f >/dev/null 2>&1 || true
+  echo ">>> Korean fallback now: $(fc-match -s :lang=ko 2>/dev/null | head -n1)"
+
+  # ibus-hangul is installed above; wiring it into the running desktop needs a
+  # session bus, which a provisioning run over ssh does not have. Only do it
+  # when there is one, and say so when there is not.
+  if [ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ] && command -v gsettings &>/dev/null; then
+    gsettings set org.gnome.desktop.input-sources sources \
+      "[('xkb', 'us'), ('ibus', 'hangul')]" 2>/dev/null \
+      && echo ">>> Input sources set to us + hangul."
+  else
+    echo ">>> No desktop session here — add Korean (Hangul) in Settings ▸ Keyboard,"
+    echo "    or run: gsettings set org.gnome.desktop.input-sources sources \"[('xkb', 'us'), ('ibus', 'hangul')]\""
+  fi
+}
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 print_summary() {
@@ -885,6 +953,7 @@ print_summary() {
   command -v codex      &>/dev/null && echo "codex     : $(codex --version 2>/dev/null | head -n1)"       || echo "codex     : not found"
   [ -x "$HOME/bin/bison" ] && echo "bison     : $("$HOME/bin/bison" --version | head -n1) (~/bin)" || echo "bison     : not in ~/bin"
   command -v ant        &>/dev/null && echo "ant       : $(ant -version 2>/dev/null | head -n1)"          || echo "ant       : not found"
+  command -v fc-match   &>/dev/null && echo "korean    : $(fc-match -s :lang=ko 2>/dev/null | head -n1 | cut -d: -f2- | cut -c1-40)" || echo "korean    : fontconfig not found"
   command -v cubrid-jira-fetch &>/dev/null && echo "jira-fetch: installed"                                || echo "jira-fetch: not found"
   command -v abtop      &>/dev/null && echo "abtop     : $(abtop --version 2>/dev/null | head -n1)"       || echo "abtop     : not found"
   command -v claude &>/dev/null && echo "claude : $(claude --version | head -n1)" || echo "claude : not found"
@@ -936,6 +1005,7 @@ main() {
   install_abtop
   install_uv_tools
   install_bison_cubrid
+  install_korean
   install_local_bin
   install_claude_settings
   install_karpathy_skills
