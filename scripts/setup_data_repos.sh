@@ -217,7 +217,10 @@ fi
 # ---------------------------------------------------------------------------
 install_ops_hub() {
   local ops="$DATA_ROOT/ops" dot
-  dot="$(cd "$SCRIPT_DIR/.." && pwd)"
+  # This script has no SCRIPT_DIR of its own — install.sh defines one, and the
+  # hook was written as if it ran there. readlink -f so it also resolves when
+  # invoked through /data/ops's symlink.
+  dot="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
 
   mkdir -p "$ops"
   echo ">>> ops hub: $ops"
