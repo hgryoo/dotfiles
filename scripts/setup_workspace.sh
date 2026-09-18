@@ -35,6 +35,30 @@ DO_CLONES=false
 
 usage() { sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'; exit 0; }
 
+EMIT_FORCE=false
+
+# The canonical manifest is topic-centric: a topic owns its checkouts, builds
+# and run output. A tree still in the older shape — wt/, build/ and runs/ as
+# siblings of topic/ at the root — emits a manifest in that older shape, and
+# writing it over the canonical one silently reverts the layout for every
+# machine built from it afterwards. Refuse unless asked twice.
+emit_guard() {
+  if [ -d "$ROOT/wt" ] || [ -d "$ROOT/build" ] || [ -d "$ROOT/runs" ]; then
+    $EMIT_FORCE && { echo "# WARNING: emitted from a pre-topic-centric tree." >&2; return 0; }
+    cat >&2 <<'MSG'
+ERROR: this tree is not topic-centric — it has wt/, build/ or runs/ at the root.
+
+Emitting from it produces a manifest in that older shape, and writing that over
+workspace/manifest.txt reverts the canonical layout for every machine set up
+from it later.
+
+If you meant to capture this tree anyway, pass --emit-force and send the output
+somewhere other than workspace/manifest.txt.
+MSG
+    exit 1
+  fi
+}
+
 emit_manifest() {
   cd "$ROOT"
   echo "# /data/workspace manifest — generated $(date +%Y-%m-%d) on $(hostname)"
@@ -76,16 +100,17 @@ emit_manifest() {
     echo "CLONE $d|$url|$(git -C "$d" rev-parse --abbrev-ref HEAD 2>/dev/null)"
   done | sort
   echo
-  echo "## DIR  <path>   (recreated empty — content is rebuilt, not carried)"
-  for tier in build runs topic archive; do
-    [ -d "$tier" ] || continue
-    echo "DIR $tier"
-    find "$tier" -mindepth 1 -maxdepth 2 -type d -not -path "*/.git/*" 2>/dev/null \
-      | while read -r d; do [ -e "$d/.git" ] && continue; echo "DIR $d"; done
-  done | sort -u
-  echo "DIR harness"
-  echo "DIR wt"
-  echo "DIR repos"
+  echo "## DIR  <path>   (created empty)"
+  # Only the axis: the tiers and one entry per topic. A per-run or per-build
+  # directory is a byproduct whose value was its contents, and nothing carries
+  # those — listing them just makes a new machine full of empty shells.
+  {
+    echo "DIR repos"
+    echo "DIR harness"
+    echo "DIR archive"
+    [ -d topic ] && find topic -mindepth 1 -maxdepth 1 -type d 2>/dev/null \
+      | while read -r d; do echo "DIR $d"; done
+  } | sort -u
 }
 
 while [ $# -gt 0 ]; do
@@ -95,7 +120,8 @@ while [ $# -gt 0 ]; do
     --root)     ROOT="$2"; shift 2 ;;
     --root=*)   ROOT="${1#*=}"; shift ;;
     --manifest) MANIFEST="$2"; shift 2 ;;
-    --emit)     emit_manifest; exit 0 ;;
+    --emit)     emit_guard; emit_manifest; exit 0 ;;
+    --emit-force) EMIT_FORCE=true; emit_guard; emit_manifest; exit 0 ;;
     -h|--help)  usage ;;
     *) echo "Unknown option: $1" >&2; echo; usage >&2 ;;
   esac

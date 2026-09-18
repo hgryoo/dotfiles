@@ -1,5 +1,11 @@
 # /data/workspace — layout
 
+The canonical layout is **topic-centric**: a topic owns its checkouts,
+builds and run output. `CLAUDE.md` beside this file has the tree, the topic
+list and where to put new things; it is the one to read.
+
+This file records how the layout got here and what the numbers were.
+
 A directory goes in the tier that matches **what it holds**, not what it is for.
 
 | Tier | Holds | Count / size on 2026-09-17 |
