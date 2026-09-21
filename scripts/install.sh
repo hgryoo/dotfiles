@@ -747,6 +747,8 @@ NPM_GLOBALS=(
   "@marp-team/marp-cli"
   "@mermaid-js/mermaid-cli"
   "slides-grab"
+  # nvim-treesitter (main branch) shells out to this to build parsers.
+  "tree-sitter-cli"
 )
 
 install_nvm() {
