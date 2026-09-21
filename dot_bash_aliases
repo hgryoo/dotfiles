@@ -72,6 +72,14 @@ use-cubrid() {
 alias claude-main='CLAUDE_CONFIG_DIR=$HOME/.claude command claude'
 alias claude-cubrid='CLAUDE_CONFIG_DIR=$HOME/.claude-cubrid command claude'
 
+# 현재 경로 마지막 2개 컴포넌트를 tmux 세션 이름용 슬러그로 변환한다.
+_claude_dir_slug() {
+  local dir_tail dir_slug
+  dir_tail=$(printf %s "$PWD" | awk -F/ '{n=NF; a=(n>1?$(n-1):""); b=$n; print (a==""?b:a"-"b)}')
+  dir_slug=$(printf %s "$dir_tail" | tr -c '[:alnum:]_-' '-' | sed 's/-\{2,\}/-/g; s/^-//; s/-$//')
+  printf %s "${dir_slug:-root}"
+}
+
 # 공통: Claude Code 를 tmux 세션 안에서 실행하는 래퍼.
 #   _claude_run <config_dir> [claude 인자...]
 # - 이미 tmux 안($TMUX)이거나 stdout 이 TTY 가 아니면(파이프/비대화형) in-place 실행.
@@ -83,10 +91,8 @@ _claude_run() {
     return $?
   fi
   # tmux 세션 이름엔 '.' ':' 불가 → 마지막 2개 경로 컴포넌트를 슬러그화.
-  local dir_tail dir_slug
-  dir_tail=$(printf %s "$PWD" | awk -F/ '{n=NF; a=(n>1?$(n-1):""); b=$n; print (a==""?b:a"-"b)}')
-  dir_slug=$(printf %s "$dir_tail" | tr -c '[:alnum:]_-' '-' | sed 's/-\{2,\}/-/g; s/^-//; s/-$//')
-  [ -z "$dir_slug" ] && dir_slug="root"
+  local dir_slug
+  dir_slug=$(_claude_dir_slug)
   # 세션 이름 접두사로 계정 구분: ~/.claude → claude- (cl), ~/.claude-cubrid → claudec- (clc).
   # cl-tabs / clc-tabs 가 이 접두사로 계정별 세션을 골라낸다.
   local prefix=claude
@@ -98,7 +104,11 @@ _claude_run() {
 }
 
 # 짧은 진입점: cl → 개인 계정, clc → 회사(cubrid) 계정 (둘 다 tmux 세션 안에서 실행).
-cl()  { _claude_run "$HOME/.claude"        --dangerously-skip-permissions --effort xhigh "$@"; }
+cl() {
+  # cl --incognito … → 격리 세션 (아래 _claude_incognito 주석 참고)
+  if [ "$1" = "--incognito" ]; then shift; _claude_incognito "$@"; return $?; fi
+  _claude_run "$HOME/.claude" --dangerously-skip-permissions --effort xhigh "$@"
+}
 clc() { _claude_run "$HOME/.claude-cubrid" --dangerously-skip-permissions --effort xhigh "$@"; }
 clt() { _claude_run "$HOME/.cubrid-cubrid1" --dangerously-skip-permissions --effort xhigh "$@"; }
 
@@ -114,6 +124,71 @@ claude() {
     2|clc|c) _claude_run "$HOME/.claude-cubrid" "$@" ;;
     *)       _claude_run "$HOME/.claude"        "$@" ;;
   esac
+}
+
+# --- incognito 세션 (added 2026-09-18) ---
+#   cl --incognito [claude 인자...]
+#
+# ~/.claude-incognito 아래에 1회용 설정 디렉토리를 만들어 그 안에서만 실행한다.
+#
+# 남지 않는 것 — 종료 시 해당 디렉토리를 통째로 삭제:
+#   대화 기록(projects/*.jsonl, history.jsonl), 세션/통계, todos, shell-snapshots,
+#   그리고 TMPDIR 도 이 디렉토리 밑으로 돌리므로 스크래치패드 잔여물까지 함께 사라진다.
+# 읽지 않는 것:
+#   --safe-mode            → CLAUDE.md(사용자/프로젝트), 스킬, 플러그인, 훅(snip 포함),
+#                            MCP, 커스텀 에이전트/커맨드/출력스타일/테마/키바인딩 전부 비활성
+#   --setting-sources user → 프로젝트 .claude/settings.json / settings.local.json 무시
+#   --strict-mcp-config    → 프로젝트 .mcp.json 무시
+# 기억하지 않는 것:
+#   autoMemoryEnabled=false → 자동 메모리 기록 off
+# 물려받는 것:
+#   ~/.claude 의 로그인(.credentials.json) 뿐. 그 외 상태는 아무것도 상속하지 않는다.
+_claude_incognito() {
+  local root="$HOME/.claude-incognito"
+  mkdir -p "$root" || return 1
+  chmod 700 "$root"
+
+  # 비정상 종료(SIGKILL, tmux kill-session)로 남은 이전 잔여물 청소:
+  # 디렉토리 이름의 PID 가 이미 죽었으면 삭제한다.
+  local d pid
+  for d in "$root"/*-*; do
+    [ -d "$d" ] || continue
+    pid=${d##*/}; pid=${pid%%-*}
+    kill -0 "$pid" 2>/dev/null || rm -rf "$d"
+  done
+
+  local sess="$root/$$-${EPOCHSECONDS:-$(date +%s)}"
+  mkdir -p "$sess/tmp" || return 1
+  chmod 700 "$sess"
+  cp "$HOME/.claude/.credentials.json" "$sess/" 2>/dev/null   # 로그인만 공유
+
+  # 온보딩/신뢰 대화상자만 건너뛰는 최소 시드. 대화·프로젝트 기록은 시드하지 않는다.
+  _CL_INC_PWD="$PWD" python3 -c 'import json,os,sys; json.dump({"hasCompletedOnboarding":True,"installMethod":"native","autoUpdates":False,"projects":{os.environ["_CL_INC_PWD"]:{"hasTrustDialogAccepted":True,"hasClaudeMdExternalIncludesApproved":True}}}, open(sys.argv[1],"w"))' "$sess/.claude.json"
+
+  local -a opts=(
+    --safe-mode
+    --setting-sources user
+    --strict-mcp-config
+    --settings '{"autoMemoryEnabled":false,"skipDangerousModePermissionPrompt":true}'
+    --dangerously-skip-permissions
+    --effort xhigh
+  )
+
+  if [ -n "$TMUX" ] || [ ! -t 1 ]; then
+    ( trap 'rm -rf "$sess"' EXIT
+      export CLAUDE_CONFIG_DIR="$sess" TMPDIR="$sess/tmp" \
+             DISABLE_TELEMETRY=1 DISABLE_ERROR_REPORTING=1 \
+             CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
+      command claude "${opts[@]}" "$@" )
+    return $?
+  fi
+
+  # 정리를 tmux 명령 안에서 끝낸다 → detach 해도 살아있는 세션의 디렉토리가 지워지지 않는다.
+  local envstr cmd
+  envstr="CLAUDE_CONFIG_DIR=$(printf %q "$sess") TMPDIR=$(printf %q "$sess/tmp")"
+  envstr="$envstr DISABLE_TELEMETRY=1 DISABLE_ERROR_REPORTING=1 CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1"
+  cmd="$envstr command claude $(printf '%q ' "${opts[@]}" "$@"); rm -rf $(printf %q "$sess")"
+  tmux new-session -s "claudei-$(_claude_dir_slug)-$$" "$cmd"
 }
 
 # --- nvim + Claude 를 한 화면에 (added 2026-09-21) ---
@@ -140,11 +215,9 @@ _claude_nvim_run() {
   local f
   for f in "$config_dir"/ide/*.lock; do [ -e "$f" ] && before="$before$f "; done
 
-  # 세션/창 이름: 마지막 2개 경로 컴포넌트 슬러그 (_claude_run 과 같은 규칙).
-  local dir_tail dir_slug prefix session pane
-  dir_tail=$(printf %s "$PWD" | awk -F/ '{n=NF; a=(n>1?$(n-1):""); b=$n; print (a==""?b:a"-"b)}')
-  dir_slug=$(printf %s "$dir_tail" | tr -c '[:alnum:]_-' '-' | sed 's/-\{2,\}/-/g; s/^-//; s/-$//')
-  [ -z "$dir_slug" ] && dir_slug="root"
+  # 세션/창 이름: _claude_run / _claude_incognito 와 같은 슬러그 헬퍼를 쓴다.
+  local dir_slug prefix session pane
+  dir_slug=$(_claude_dir_slug)
   prefix=claude
   [ "$(basename -- "$config_dir")" = ".claude-cubrid" ] && prefix=claudec
   session="${prefix}-${dir_slug}-$$"
