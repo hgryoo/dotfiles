@@ -19,6 +19,8 @@ if [ -n "${PERF_PASSWORD:-}" ]; then
     echo "sshpass 가 없습니다: sudo apt-get install -y sshpass" >&2
     exit 1
   }
-  exec sshpass -p "$PERF_PASSWORD" ssh "$PERF_HOST" "$@"
+  # -p 는 ps 에 비밀번호가 그대로 보인다. -e 로 환경변수를 통해 넘긴다.
+  export SSHPASS="$PERF_PASSWORD"
+  exec sshpass -e ssh "$PERF_HOST" "$@"
 fi
 exec ssh "$PERF_HOST" "$@"
