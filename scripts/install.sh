@@ -385,8 +385,22 @@ set_default_shell_bash() {
 # Neovim
 # ---------------------------------------------------------------------------
 install_neovim() {
+  # dot_config/nvim needs 0.12 — it uses vim.lsp.config/enable and pins
+  # nvim-treesitter to `main`, whose README states master does not support
+  # 0.12. So an older nvim does not count as installed: hgryoo-desktop sat on
+  # the apt 0.9.5 for months because this used to return right here.
+  local NVIM_MIN="0.12"
   if command -v nvim &>/dev/null; then
-    echo ">>> Neovim already installed ($(nvim --version | head -n1)), skipping."
+    local cur
+    cur=$(nvim --version | head -n1 | sed 's/^NVIM v//')
+    if [ "$(printf '%s\n' "$NVIM_MIN" "$cur" | sort -V | head -n1)" = "$NVIM_MIN" ]; then
+      echo ">>> Neovim already installed (v$cur), skipping."
+      return
+    fi
+    # The official tarball lands in ~/.local, which precedes /usr/bin on PATH,
+    # so the distro package can stay where it is.
+    echo ">>> Neovim v$cur is older than $NVIM_MIN — installing the official build to ~/.local."
+    install_neovim_tarball
     return
   fi
   echo ">>> Installing Neovim..."
@@ -398,7 +412,7 @@ install_neovim() {
       # until some time after it appears: on 26.04 (resolute) it 404s, and an
       # add-apt-repository that fails leaves a broken source behind that makes
       # every later `apt-get update` fail.
-      local want=9 have
+      local want=12 have
       have=$(apt-cache policy neovim 2>/dev/null | awk '/Candidate:/{print $2}')
       if [ -n "$have" ] && [ "$have" != "(none)" ] \
          && [ "$(printf '%s\n' "0.$want" "${have#*:}" | sort -V | head -n1)" = "0.$want" ]; then
