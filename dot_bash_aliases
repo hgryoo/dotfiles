@@ -116,6 +116,72 @@ claude() {
   esac
 }
 
+# --- nvim + Claude 를 한 화면에 (added 2026-09-21) ---
+# vcl / vclc / vclt : cl / clc / clt 와 같은 계정으로, 현재 경로에서 nvim(왼쪽)과
+# claude(오른쪽)를 한 tmux 창의 두 pane 으로 띄운다. 인자는 claude 로 넘어간다.
+#
+# 핵심은 두 pane 이 서로 붙는다는 것이다. claudecode.nvim 은
+# $CLAUDE_CONFIG_DIR/ide/<port>.lock 에 락을 쓰므로, nvim 에도 같은 계정을 주고
+# 새로 생긴 락에서 포트를 읽어 claude 쪽에 CLAUDE_CODE_SSE_PORT 로 넘긴다.
+# --ide 만 쓰면 "정확히 하나"일 때만 자동 연결이라, 에디터를 여러 개 띄워 두면 실패한다.
+#
+# 세션 이름은 _claude_run 과 같은 규칙(claude- / claudec-)이라 cl-tabs / clc-tabs 가
+# 이 세션들도 그대로 모아 준다.
+_claude_nvim_run() {
+  local config_dir="$1"; shift
+  command -v tmux >/dev/null || { echo "tmux 가 필요합니다" >&2; return 1; }
+
+  local qcd qargs
+  qcd=$(printf %q "$config_dir")
+  qargs=$(printf '%q ' "$@")
+
+  # 이 nvim 이 새로 만드는 락만 골라내기 위해 먼저 스냅샷.
+  local before=" "
+  local f
+  for f in "$config_dir"/ide/*.lock; do [ -e "$f" ] && before="$before$f "; done
+
+  # 세션/창 이름: 마지막 2개 경로 컴포넌트 슬러그 (_claude_run 과 같은 규칙).
+  local dir_tail dir_slug prefix session pane
+  dir_tail=$(printf %s "$PWD" | awk -F/ '{n=NF; a=(n>1?$(n-1):""); b=$n; print (a==""?b:a"-"b)}')
+  dir_slug=$(printf %s "$dir_tail" | tr -c '[:alnum:]_-' '-' | sed 's/-\{2,\}/-/g; s/^-//; s/-$//')
+  [ -z "$dir_slug" ] && dir_slug="root"
+  prefix=claude
+  [ "$(basename -- "$config_dir")" = ".claude-cubrid" ] && prefix=claudec
+  session="${prefix}-${dir_slug}-$$"
+
+  # nvim pane 부터. `nvim .` 이라 oil 이 그 디렉터리를 바로 보여준다.
+  if [ -n "$TMUX" ]; then
+    pane=$(tmux new-window -P -F '#{pane_id}' -n "$dir_slug" -c "$PWD" \
+             "CLAUDE_CONFIG_DIR=$qcd nvim .")
+  else
+    pane=$(tmux new-session -d -P -F '#{pane_id}' -s "$session" -c "$PWD" \
+             "CLAUDE_CONFIG_DIR=$qcd nvim .")
+  fi
+
+  # 락이 뜨기를 최대 10초 기다린다. 못 찾으면 포트 없이(=--ide 에 맡기고) 진행.
+  local port="" i
+  for i in $(seq 1 40); do
+    for f in "$config_dir"/ide/*.lock; do
+      [ -e "$f" ] || continue
+      case "$before" in *" $f "*) continue ;; esac
+      port=$(basename -- "$f" .lock); break
+    done
+    [ -n "$port" ] && break
+    sleep 0.25
+  done
+
+  local env_prefix="CLAUDE_CONFIG_DIR=$qcd ENABLE_IDE_INTEGRATION=true"
+  [ -n "$port" ] && env_prefix="$env_prefix CLAUDE_CODE_SSE_PORT=$port"
+
+  tmux split-window -h -l 40% -t "$pane" -c "$PWD" "$env_prefix command claude --ide $qargs"
+  tmux select-pane -t "$pane"
+  [ -z "$TMUX" ] && tmux attach -t "$session"
+}
+
+vcl()  { _claude_nvim_run "$HOME/.claude"         --dangerously-skip-permissions --effort xhigh "$@"; }
+vclc() { _claude_nvim_run "$HOME/.claude-cubrid"  --dangerously-skip-permissions --effort xhigh "$@"; }
+vclt() { _claude_nvim_run "$HOME/.cubrid-cubrid1" --dangerously-skip-permissions --effort xhigh "$@"; }
+
 # 같은 계정으로 '격리된' 추가 세션 실행 (.claude.json 경합 없음 → 동시 실행 안전)
 #   clm           → 개인 계정 격리 세션
 #   clm cubrid    → 회사 계정 격리 세션

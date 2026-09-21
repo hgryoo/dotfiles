@@ -226,6 +226,16 @@ CLAUDE_CONFIG_DIR=$HOME/.claude nvim
 already running in another tmux pane — run `/ide` there and it will find the
 editor, as long as both are on the same account.
 
+`vcl` / `vclc` / `vclt` (in `dot_bash_aliases`) start that layout in one step:
+the same account as `cl` / `clc` / `clt`, a tmux window with `nvim .` on the
+left and Claude on the right, both in the current directory, and already
+connected to each other. They read the port out of the lock file the editor
+just wrote and pass it as `CLAUDE_CODE_SSE_PORT`, rather than relying on
+`--ide` alone — `--ide` only auto-connects when exactly one editor is running,
+which stops being true the moment a second project is open. Arguments go to
+Claude, and the session name follows the `claude-` / `claudec-` convention so
+`cl-tabs` and `clc-tabs` still collect them.
+
 ### clangd and compile_commands.json
 
 CUBRID builds outside the source tree, so clangd cannot find the database on

@@ -41,10 +41,13 @@ opt.mousemodel = "popup_setpos" -- 우클릭 컨텍스트 메뉴
 -- 한글: D2Coding / Noto Sans Mono CJK 환경에서는 ambiwidth=single(기본값)이 맞다.
 -- 여기서 double 로 바꾸면 박스 문자와 아이콘 정렬이 오히려 깨진다.
 
--- 클립보드. wl-copy(wayland)나 xclip 이 있으면 그쪽을 쓰고, 없으면 OSC52 로
--- 터미널을 통해 로컬 클립보드에 보낸다 — 노트북↔데스크톱 ssh 작업이 잦아서 이게 실질적이다.
+-- 클립보드. ssh 로 들어와 있으면 wl-copy 가 있어도 OSC52 를 쓴다 — 원격 머신의
+-- 클립보드에 넣어 봐야 손에 닿는 건 앞에 있는 머신의 클립보드다. 로컬 세션에서는
+-- wl-copy(wayland) / xclip 을 쓰고, 둘 다 없을 때도 OSC52 로 떨어진다.
 opt.clipboard = "unnamedplus"
-if vim.fn.executable("wl-copy") == 0 and vim.fn.executable("xclip") == 0 then
+if vim.env.SSH_TTY ~= nil
+  or (vim.fn.executable("wl-copy") == 0 and vim.fn.executable("xclip") == 0)
+then
   local ok, osc52 = pcall(require, "vim.ui.clipboard.osc52")
   if ok then
     vim.g.clipboard = {

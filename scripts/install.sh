@@ -913,6 +913,13 @@ install_local_bin() {
   # cl-tabs also answers to clc-tabs (the claude-cubrid config dir variant).
   [ -f "$HOME/bin/cl-tabs.sh" ] && [ ! -e "$HOME/bin/clc-tabs" ] \
     && ln -s cl-tabs.sh "$HOME/bin/clc-tabs"
+
+  # Ubuntu ships fd-find as `fdfind` — the binary name `fd` belongs to another
+  # package. Every tool that looks for a fast finder, nvim's picker included,
+  # looks for `fd`.
+  if ! command -v fd >/dev/null 2>&1 && command -v fdfind >/dev/null 2>&1; then
+    ln -sfn "$(command -v fdfind)" "$HOME/bin/fd" && echo "    - fd -> fdfind"
+  fi
   return 0
 }
 
