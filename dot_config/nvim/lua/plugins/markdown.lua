@@ -36,4 +36,49 @@ return {
       { "<leader>fv", function() Snacks.picker.grep({ cwd = VAULT }) end, desc = "cubrid_cv 검색" },
     },
   },
+
+  -- render-markdown 이 못 그리는 것: 그림. roadmap 의 survey figure 는 SVG 143편이고
+  -- (CLAUDE.md §2.9 — 인라인 <svg> 금지, assets/*.svg 링크만) mermaid 블록이 6편 더 있는데
+  -- 버퍼 안에서는 전부 링크 텍스트로만 보인다. 그림까지 확인해야 할 때만 브라우저를 띄운다.
+  -- 로컬 http 로 서빙하므로 assets/ 상대경로가 그대로 풀리고 mermaid 는 내장 지원이라,
+  -- GitHub 에 push 하기 전 §2.9 그림을 확인하는 경로가 이것 하나로 끝난다.
+  {
+    "iamcco/markdown-preview.nvim",
+    ft = { "markdown" },
+    cmd = { "MarkdownPreview", "MarkdownPreviewStop", "MarkdownPreviewToggle" },
+    -- 릴리스 바이너리를 받는 mkdp#util#install() 은 비동기라 lazy 가 완료 전에 성공으로 찍는다.
+    -- node 가 이미 있으니 app/ 을 직접 빌드한다.
+    build = "cd app && npx --yes yarn install",
+    init = function()
+      vim.g.mkdp_filetypes = { "markdown" }
+      vim.g.mkdp_auto_close = 0 -- 버퍼를 닫아도 탭은 남긴다: 문서 여러 편을 번갈아 볼 때 창이 사라지면 성가시다
+      vim.g.mkdp_theme = "light" -- §2.9 SVG 팔레트가 흰 배경 기준으로 그려져 있다
+
+      -- ssh 로 들어와 있으면 브라우저를 띄우지 않는다. options.lua 의 클립보드와 같은
+      -- 이유다 — 원격에서 띄운 크롬은 원격 화면에서 뜨고, 손에 닿는 건 앞의 머신이다.
+      -- 대신 URL 만 받아 OSC52 로 로컬 클립보드에 넣는다(mkdp_browserfunc 가 지정되면
+      -- app/server.js 는 openUrl 을 아예 부르지 않는다).
+      if vim.env.SSH_TTY ~= nil then
+        -- 포트를 비워두면 매번 랜덤이라 ssh -L 터널을 미리 걸 수 없다.
+        --   ssh -L 8899:localhost:8899 <host>   (또는 ~/.ssh/config 의 LocalForward)
+        vim.g.mkdp_port = "8899"
+        vim.g.mkdp_browserfunc = "MkdpRemoteUrl"
+        vim.g.mkdp_echo_preview_url = 1
+        vim.cmd([[
+          function! MkdpRemoteUrl(url) abort
+            let @+ = a:url
+            echomsg 'markdown preview: ' . a:url . ' (클립보드에 복사됨 — 터널 필요)'
+          endfunction
+        ]])
+      end
+    end,
+    keys = {
+      {
+        "<leader>p",
+        "<cmd>MarkdownPreviewToggle<CR>",
+        ft = "markdown",
+        desc = "브라우저 미리보기 (SVG·mermaid)",
+      },
+    },
+  },
 }
