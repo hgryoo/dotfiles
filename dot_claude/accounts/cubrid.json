@@ -1,0 +1,8 @@
+{
+  "model": "opus[1m]",
+  "permissions": {
+    "defaultMode": "auto"
+  },
+  "effortLevel": "high",
+  "theme": "dark"
+}

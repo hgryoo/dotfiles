@@ -135,40 +135,86 @@ install_base_rocky() {
 # this function plants the defaults on first install so plugins/marketplaces
 # are auto-wired, but preserves any local customizations — hooks, model, etc.)
 # ---------------------------------------------------------------------------
+# Accounts share everything but a handful of keys. `cl` runs against
+# ~/.claude and `clc` against ~/.claude-cubrid, and for a long time only the
+# first was seeded — the second was whatever had been set up by hand, which is
+# how one ended up on snip and the other still on rtk after snip replaced it.
+# Seed both from one base plus a per-account overlay, so a change to a hook or
+# a plugin lands in every account by construction.
+#
+#   dot_claude/settings.json        the shared base
+#   dot_claude/accounts/<n>.json    what differs: model, permissions, effort
+#
+# Seed-only, as before: Claude Code writes to settings.json at runtime (it
+# records plugin state there), so an existing file is never overwritten
+# without being asked.
+CLAUDE_ACCOUNTS=(
+  "main|$HOME/.claude"
+  "cubrid|$HOME/.claude-cubrid"
+)
+
 install_claude_settings() {
-  local repo_root
+  local repo_root base
   repo_root="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
-  local src="$repo_root/dot_claude/settings.json"
-  local dst="$HOME/.claude/settings.json"
+  base="$repo_root/dot_claude/settings.json"
 
-  if [ ! -f "$src" ]; then
-    echo "WARNING: $src not found — skipping Claude settings seed." >&2
+  if [ ! -f "$base" ]; then
+    echo "WARNING: $base not found — skipping Claude settings seed." >&2
     return
   fi
-  if [ -f "$dst" ]; then
-    if ! [ -t 0 ]; then
-      echo ">>> Claude settings.json exists at $dst; non-interactive shell, keeping existing."
-      return
+
+  local entry account dst overlay
+  for entry in "${CLAUDE_ACCOUNTS[@]}"; do
+    IFS='|' read -r account dst <<<"$entry"
+    overlay="$repo_root/dot_claude/accounts/$account.json"
+    [ -f "$overlay" ] || { echo "WARNING: no overlay for $account, skipping." >&2; continue; }
+
+    if [ -f "$dst/settings.json" ]; then
+      if ! [ -t 0 ]; then
+        echo ">>> $dst/settings.json exists; non-interactive, keeping it."
+        continue
+      fi
+      local reply
+      read -r -p ">>> $dst/settings.json exists. Overwrite? [y/N] " reply
+      case "${reply,,}" in
+        y|yes) cp "$dst/settings.json" "$dst/settings.json.bak.$(date +%Y%m%d%H%M%S)" ;;
+        *) echo ">>> Keeping $dst/settings.json."; continue ;;
+      esac
     fi
-    local reply
-    read -r -p ">>> Claude settings.json already exists at $dst. Overwrite? [y/N] " reply
-    case "${reply,,}" in
-      y|yes)
-        local backup="$dst.bak.$(date +%Y%m%d%H%M%S)"
-        cp "$dst" "$backup"
-        cp "$src" "$dst"
-        echo ">>> Overwrote $dst (previous saved to $backup)."
-        ;;
-      *)
-        echo ">>> Keeping existing $dst."
-        ;;
-    esac
-    return
-  fi
 
-  mkdir -p "$HOME/.claude"
-  cp "$src" "$dst"
-  echo ">>> Seeded $dst from $src."
+    mkdir -p "$dst"
+    python3 - "$base" "$overlay" "$dst/settings.json" <<'PYMERGE'
+import json, sys
+base, overlay, out = (json.load(open(sys.argv[1])), json.load(open(sys.argv[2])), sys.argv[3])
+base.update(overlay)
+open(out, "w").write(json.dumps(base, indent=2) + "\n")
+PYMERGE
+    echo ">>> Seeded $dst/settings.json ($account)."
+  done
+}
+
+# Report the Bash hook each account resolves to. The two accounts running
+# different proxies went unnoticed because each worked on its own.
+check_claude_accounts() {
+  local entry account dst cmd
+  for entry in "${CLAUDE_ACCOUNTS[@]}"; do
+    IFS='|' read -r account dst <<<"$entry"
+    if [ ! -f "$dst/settings.json" ]; then
+      printf 'claude/%-7s: no settings.json\n' "$account"; continue
+    fi
+    cmd=$(python3 -c '
+import json, sys
+try:
+    j = json.load(open(sys.argv[1]))
+    for e in (j.get("hooks") or {}).get("PreToolUse", []):
+        for h in e.get("hooks", []):
+            print(h.get("command", "")); raise SystemExit
+    print("(none)")
+except Exception as exc:
+    print(f"(unreadable: {exc})")
+' "$dst/settings.json")
+    printf 'claude/%-7s: %s\n' "$account" "$cmd"
+  done
 }
 
 # ---------------------------------------------------------------------------
@@ -958,6 +1004,7 @@ print_summary() {
   command -v cubrid-jira-fetch &>/dev/null && echo "jira-fetch: installed"                                || echo "jira-fetch: not found"
   command -v abtop      &>/dev/null && echo "abtop     : $(abtop --version 2>/dev/null | head -n1)"       || echo "abtop     : not found"
   command -v claude &>/dev/null && echo "claude : $(claude --version | head -n1)" || echo "claude : not found"
+  check_claude_accounts
   command -v omc    &>/dev/null && echo "omc    : $(omc --version 2>/dev/null || echo 'installed')" || echo "omc    : not found"
   command -v code-review-graph &>/dev/null && echo "code-review-graph: $(code-review-graph --version 2>/dev/null | head -n1 || echo installed)" || echo "code-review-graph: not found"
   command -v token-savior      &>/dev/null && echo "token-savior     : $(token-savior --version 2>/dev/null | head -n1 || echo installed)"      || echo "token-savior     : not found"
