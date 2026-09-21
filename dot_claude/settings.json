@@ -1,56 +1,29 @@
 {
+  "autoMemoryEnabled": false,
+  "effortLevel": "high",
+  "env": {
+    "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING": "1"
+  },
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Bash",
         "hooks": [
           {
-            "type": "command",
-            "command": "/home/hgryoo/.local/bin/snip hook"
+            "command": "/home/hgryoo/.local/bin/snip hook",
+            "type": "command"
           }
-        ]
+        ],
+        "matcher": "Bash"
       }
     ]
   },
-  "statusLine": {
-    "type": "command",
-    "command": "node /home/hgryoo/.claude/plugins/cache/claude-dashboard/claude-dashboard/1.25.0/dist/index.js"
-  },
-  "enabledPlugins": {
-    "oh-my-claudecode@omc": true,
-    "claude-dashboard@claude-dashboard": true,
-    "codex@openai-codex": true,
-    "clangd@claude-code-lsps": true
-  },
-  "extraKnownMarketplaces": {
-    "omc": {
-      "source": {
-        "source": "github",
-        "repo": "Yeachan-Heo/oh-my-claudecode"
-      }
-    },
-    "claude-dashboard": {
-      "source": {
-        "source": "github",
-        "repo": "uppinote20/claude-dashboard"
-      }
-    },
-    "openai-codex": {
-      "source": {
-        "source": "github",
-        "repo": "openai/codex-plugin-cc"
-      }
-    },
-    "claude-code-lsps": {
-      "source": {
-        "source": "github",
-        "repo": "boostvolt/claude-code-lsps"
-      }
-    }
+  "model": "opus[1m]",
+  "permissions": {
+    "defaultMode": "auto"
   },
   "skipDangerousModePermissionPrompt": true,
-  "autoMemoryEnabled": false,
-  "env": {
-    "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING": "1"
+  "statusLine": {
+    "command": "node /home/hgryoo/.claude/plugins/cache/claude-dashboard/claude-dashboard/1.25.0/dist/index.js",
+    "type": "command"
   }
 }

@@ -1,7 +1,43 @@
 {
-  "model": "Opus",
-  "permissions": {
-    "defaultMode": "acceptEdits"
+  "agentPushNotifEnabled": true,
+  "enabledPlugins": {
+    "clangd-lsp@claude-plugins-official": true,
+    "clangd@claude-code-lsps": true,
+    "claude-dashboard@claude-dashboard": true,
+    "codex@openai-codex": true,
+    "oh-my-claudecode@omc": true
   },
-  "effortLevel": "xhigh"
+  "extraKnownMarketplaces": {
+    "claude-code-lsps": {
+      "source": {
+        "repo": "boostvolt/claude-code-lsps",
+        "source": "github"
+      }
+    },
+    "claude-dashboard": {
+      "source": {
+        "repo": "uppinote20/claude-dashboard",
+        "source": "github"
+      }
+    },
+    "omc": {
+      "source": {
+        "repo": "Yeachan-Heo/oh-my-claudecode",
+        "source": "github"
+      }
+    },
+    "openai-codex": {
+      "source": {
+        "repo": "openai/codex-plugin-cc",
+        "source": "github"
+      }
+    },
+    "samber": {
+      "source": {
+        "repo": "samber/cc",
+        "source": "github"
+      }
+    }
+  },
+  "tui": "fullscreen"
 }
