@@ -44,13 +44,15 @@ return {
     "ThePrimeagen/harpoon",
     branch = "harpoon2",
     dependencies = { "nvim-lua/plenary.nvim" },
+    -- <leader>m (mark). 원래 <leader>a 였는데 claudecode 의 <leader>a* 와 접두사가
+    -- 겹쳐서, 둘 다 매핑돼 있으면 nvim 이 timeoutlen 만큼 기다렸다 결정한다.
     keys = {
-      { "<leader>a", function() require("harpoon"):list():add() end, desc = "harpoon 에 추가" },
-      { "<leader>h", function() local h = require("harpoon") h.ui:toggle_quick_menu(h:list()) end, desc = "harpoon 목록" },
-      { "<leader>1", function() require("harpoon"):list():select(1) end, desc = "harpoon 1" },
-      { "<leader>2", function() require("harpoon"):list():select(2) end, desc = "harpoon 2" },
-      { "<leader>3", function() require("harpoon"):list():select(3) end, desc = "harpoon 3" },
-      { "<leader>4", function() require("harpoon"):list():select(4) end, desc = "harpoon 4" },
+      { "<leader>ma", function() require("harpoon"):list():add() end, desc = "harpoon 에 추가" },
+      { "<leader>mm", function() local h = require("harpoon") h.ui:toggle_quick_menu(h:list()) end, desc = "harpoon 목록" },
+      { "<leader>m1", function() require("harpoon"):list():select(1) end, desc = "harpoon 1" },
+      { "<leader>m2", function() require("harpoon"):list():select(2) end, desc = "harpoon 2" },
+      { "<leader>m3", function() require("harpoon"):list():select(3) end, desc = "harpoon 3" },
+      { "<leader>m4", function() require("harpoon"):list():select(4) end, desc = "harpoon 4" },
     },
     config = function() require("harpoon"):setup() end,
   },

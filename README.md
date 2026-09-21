@@ -173,6 +173,7 @@ it does not support 0.12.
 | `nvim-treesitter` (main) | c, cpp, java, lua, bash, python, markdown, json, yaml, sql |
 | `trouble.nvim` | diagnostics and references as a list |
 | `render-markdown.nvim` | markdown rendered in the buffer |
+| `claudecode.nvim` | Claude Code over the IDE protocol (selection, diffs) |
 
 Keys — leader is `<Space>`:
 
@@ -182,11 +183,14 @@ Keys — leader is `<Space>`:
 | `<leader>ff` / `fg` / `fb` / `fr` | files / grep / buffers / recent |
 | `<leader>fp` | project by zoxide |
 | `<leader>e` / `-` | explorer / parent directory (oil) |
-| `<leader>a` / `<leader>h` / `<leader>1..4` | harpoon add / menu / jump |
+| `<leader>ma` / `mm` / `m1..4` | harpoon add / menu / jump |
 | `<leader>qs` / `ql` / `qS` | restore session for cwd / last / pick |
 | `<leader>fk` / `fK` / `fv` | knowledge-base grep / by frontmatter title / cubrid_cv grep |
 | `<leader>cf` | format the current file with `cubindent` |
 | `<leader>y` | copy `file:line` (to paste into a Claude pane) |
+| `<leader>ac` / `af` / `ao` | Claude: toggle terminal / focus / status |
+| `<leader>as` (visual) / `ab` | send the selection / add this file to the context |
+| `<leader>aa` / `ad` | accept / deny a Claude diff |
 | `<leader>xx` / `xb` / `xr` | trouble: diagnostics / this file / references |
 | `gd` / `gD` / `<leader>cs` | definition / declaration / document symbols |
 
@@ -200,6 +204,27 @@ npm install -g tree-sitter-cli     # already in NPM_GLOBALS; parsers will not bu
 Without `clangd` the LSP is simply not registered (guarded), and without
 `wl-copy`/`xclip` the config falls back to OSC 52, which is what makes yanks
 work over ssh anyway.
+
+### Claude Code, and which account sees the editor
+
+The official IDE extensions are VS Code and JetBrains only; `claudecode.nvim`
+implements the same WebSocket protocol. nvim writes a lock file to
+`$CLAUDE_CONFIG_DIR/ide/<port>.lock` and the CLI only scans its own account's
+directory — so the account the lock lands in decides which Claude sessions can
+see this editor.
+
+There are two accounts here (`cl` -> `~/.claude`, `clc` -> `~/.claude-cubrid`),
+so the config defaults `CLAUDE_CONFIG_DIR` to the cubrid one, which is what
+/data/cub_sys and /data/cubrid_cv work runs under. To attach the personal
+account instead, set it in the shell that starts the editor:
+
+```sh
+CLAUDE_CONFIG_DIR=$HOME/.claude nvim
+```
+
+`<leader>ac` opens Claude in a split inside nvim. For the usual layout — Claude
+already running in another tmux pane — run `/ide` there and it will find the
+editor, as long as both are on the same account.
 
 ### clangd and compile_commands.json
 
