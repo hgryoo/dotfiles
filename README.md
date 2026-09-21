@@ -105,7 +105,8 @@ See `ops/README.md` for the table and the fresh-machine order.
 | `dot_bash_exports` | `~/.bash_exports` |
 | `dot_gitconfig.tmpl` | `~/.gitconfig` |
 | `dot_vimrc` | `~/.vimrc` |
-| `dot_config/nvim/init.lua` | `~/.config/nvim/init.lua` |
+| `dot_config/nvim/` | `~/.config/nvim/` (init.lua + `lua/config/`, `lua/plugins/`) |
+| `dot_config/ripgrep/config` | `~/.config/ripgrep/config` (via `RIPGREP_CONFIG_PATH`) |
 | `dot_config/direnv/` | `~/.config/direnv/` |
 | `dot_config/htop/private_htoprc` | `~/.config/htop/htoprc` (mode 600) |
 | `dot_config/Code/User/settings.json` | `~/.config/Code/User/settings.json` |
@@ -151,6 +152,69 @@ stripped on deploy, so `bin/executable_connect-vpn.sh` lands as
 > The `connect-*` scripts carry **no** credentials. They read `~/.secrets.env`,
 > which is a symlink to the git-ignored `secrets.env`. `scripts/setup.sh`
 > prompts for the values and creates the link.
+
+---
+
+## Neovim
+
+`dot_config/nvim/` is a small hand-written config, not a distribution: options
+and keymaps in `lua/config/`, plugin specs in `lua/plugins/`. It needs
+**Neovim 0.12** — it uses `vim.lsp.config`/`vim.lsp.enable` instead of
+nvim-lspconfig, and nvim-treesitter is pinned to `main` because master states
+it does not support 0.12.
+
+| Plugin | What it is for |
+|---|---|
+| `snacks.nvim` | picker (files / grep / buffers / recent / zoxide) and explorer |
+| `oil.nvim` | edit a directory as a buffer |
+| `harpoon` (harpoon2) | pin the few files one issue touches |
+| `persistence.nvim` | one session per cwd |
+| `which-key.nvim` | the leader menu, while the keys are still new |
+| `nvim-treesitter` (main) | c, cpp, java, lua, bash, python, markdown, json, yaml, sql |
+| `trouble.nvim` | diagnostics and references as a list |
+| `render-markdown.nvim` | markdown rendered in the buffer |
+
+Keys — leader is `<Space>`:
+
+| Key | Action |
+|---|---|
+| `<leader><space>` | smart find (buffers + recent + files) |
+| `<leader>ff` / `fg` / `fb` / `fr` | files / grep / buffers / recent |
+| `<leader>fp` | project by zoxide |
+| `<leader>e` / `-` | explorer / parent directory (oil) |
+| `<leader>a` / `<leader>h` / `<leader>1..4` | harpoon add / menu / jump |
+| `<leader>qs` / `ql` / `qS` | restore session for cwd / last / pick |
+| `<leader>fk` / `fK` / `fv` | knowledge-base grep / by frontmatter title / cubrid_cv grep |
+| `<leader>cf` | format the current file with `cubindent` |
+| `<leader>y` | copy `file:line` (to paste into a Claude pane) |
+| `<leader>xx` / `xb` / `xr` | trouble: diagnostics / this file / references |
+| `gd` / `gD` / `<leader>cs` | definition / declaration / document symbols |
+
+Tools it expects, none of which this repo can install without sudo:
+
+```sh
+sudo apt install clangd ripgrep fd-find wl-clipboard
+npm install -g tree-sitter-cli     # already in NPM_GLOBALS; parsers will not build without it
+```
+
+Without `clangd` the LSP is simply not registered (guarded), and without
+`wl-copy`/`xclip` the config falls back to OSC 52, which is what makes yanks
+work over ssh anyway.
+
+### clangd and compile_commands.json
+
+CUBRID builds outside the source tree, so clangd cannot find the database on
+its own. Link it once per checkout and keep the link out of git:
+
+```sh
+ln -sfn ../devbuild/compile_commands.json /data/cub_sys/cubrid/compile_commands.json
+echo compile_commands.json >> /data/cub_sys/cubrid/.git/info/exclude
+```
+
+Formatting is **not** wired to clangd on purpose: the project formats with
+`cubindent` (`indent -l120` for .c/.h, `astyle --style=gnu --indent=spaces=2`
+for .cpp, google-java-format for .java), so nothing formats on save and
+`<leader>cf` calls cubindent instead.
 
 ---
 
