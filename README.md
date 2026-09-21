@@ -146,6 +146,7 @@ stripped on deploy, so `bin/executable_connect-vpn.sh` lands as
 | `connect-vpn.sh` | CUBRID openfortivpn — credentials from `~/.secrets.env` |
 | `connect-aws.sh` | cubvec EC2 SSH — host from `~/.secrets.env`, key file copied by hand |
 | `connect-perf.sh` | Perf server SSH — host/password from `~/.secrets.env` |
+| `connect-ts.sh` | ssh to a tailnet machine by name fragment; no argument lists them |
 
 > The `connect-*` scripts carry **no** credentials. They read `~/.secrets.env`,
 > which is a symlink to the git-ignored `secrets.env`. `scripts/setup.sh`
@@ -169,7 +170,6 @@ stripped on deploy, so `bin/executable_connect-vpn.sh` lands as
 | fzf | apt / dnf |
 | just | curl installer |
 | gh (GitHub CLI) | apt repo / dnf repo |
-| [rtk](https://github.com/rtk-ai/rtk) | curl installer |
 | [snip](https://github.com/edouard-claude/snip) | curl installer + `snip init` |
 | nvm + Node (`NODE_VERSION`, default 24) | curl installer |
 | npm globals: codex, openclaw, sisyphus, marp-cli, mermaid-cli, slides-grab | npm |

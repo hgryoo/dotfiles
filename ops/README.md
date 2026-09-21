@@ -87,6 +87,11 @@ once you have confirmed the new ones do.
 | `~/connect_perf08.sh` | `connect-perf.sh` | host-key checking is **on** now |
 | `~/connect_aws.sh` | `connect-aws.sh` | key path from `CUBVEC_EC2_KEY`, default `~/cubvec_keypair1.pem` |
 
+`connect-ts` is the one that is not a rename: it ssh's to any machine on the
+tailnet by a fragment of its name, and with no argument lists them with their
+state. It refuses an offline or Android peer with the reason rather than
+hanging on a connect timeout.
+
 ## Where the rest is
 
 - `/data/workspace/CLAUDE.md` — which folder to go to for a topic, and the

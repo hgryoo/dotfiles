@@ -506,24 +506,6 @@ install_lazygit() {
 }
 
 # ---------------------------------------------------------------------------
-# rtk (AI CLI)
-# ---------------------------------------------------------------------------
-install_rtk() {
-  if command -v rtk &>/dev/null; then
-    echo ">>> rtk already installed ($(rtk --version 2>/dev/null | head -n1)), skipping."
-    return
-  fi
-  echo ">>> Installing rtk..."
-  curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh
-  export PATH="$HOME/.local/bin:$PATH"
-  # `rtk init -g` writes ~/.claude/RTK.md, and install_claude_settings — which
-  # creates that directory — runs later. On a fresh machine rtk aborts the run:
-  #   Failed to write RTK.md: … No such file or directory
-  mkdir -p "$HOME/.claude"
-  rtk init -g || echo "!!! rtk init failed — run 'rtk init -g' by hand." >&2
-}
-
-# ---------------------------------------------------------------------------
 # abtop (btop-like TUI for Claude Code / Codex CLI sessions)
 # https://github.com/graykode/abtop
 # ---------------------------------------------------------------------------
@@ -967,7 +949,6 @@ print_summary() {
   command -v alacritty  &>/dev/null && echo "alacritty : $(alacritty --version | head -n1)"                || echo "alacritty : not found"
   command -v tailscale  &>/dev/null && echo "tailscale : $(tailscale --version | head -n1)"                || echo "tailscale : not found"
   command -v gh         &>/dev/null && echo "gh        : $(gh --version | head -n1)"                      || echo "gh        : not found"
-  command -v rtk        &>/dev/null && echo "rtk       : $(rtk --version 2>/dev/null | head -n1)"         || echo "rtk       : not found"
   command -v snip       &>/dev/null && echo "snip      : $(snip --version 2>/dev/null | head -n1)"        || echo "snip      : not found"
   command -v node       &>/dev/null && echo "node      : $(node --version)"                               || echo "node      : not found"
   command -v codex      &>/dev/null && echo "codex     : $(codex --version 2>/dev/null | head -n1)"       || echo "codex     : not found"
@@ -1020,7 +1001,6 @@ main() {
   install_alacritty
   install_tailscale
   install_gh
-  install_rtk
   install_snip
   install_abtop
   install_uv_tools
