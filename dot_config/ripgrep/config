@@ -1,0 +1,8 @@
+# ripgrep 기본 옵션 — RIPGREP_CONFIG_PATH 로 연결된다 (dot_bash_exports).
+#
+# --follow 가 핵심이다: /data/workspace 는 심링크로 짜인 레이아웃이라
+# (topic/*, cub_sys/workspace, ops/* 등) 이게 없으면 검색이 트리 절반을 통째로 건너뛴다.
+--follow
+--smart-case
+--hidden
+--glob=!.git/

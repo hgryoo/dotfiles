@@ -8,3 +8,11 @@ export PATH="$HOME/.local/bin:$PATH"
 # When the CWD walk-up fails (i.e., working in a sibling repo), the kb-*
 # scripts fall back to this env var. See dot_claude/KB.md for usage.
 [ -d "/data/hgryoo/knowledge-base" ] && export KB_ROOT="/data/hgryoo/knowledge-base"
+
+# 에디터. git 의 core.editor 도 nvim 으로 맞춰 둔다 (dot_gitconfig.tmpl).
+export EDITOR=nvim
+export VISUAL=nvim
+
+# ripgrep 기본 옵션 (dot_config/ripgrep/config). 심링크를 따라가게 하는 --follow 때문에
+# 필요하다 — /data/workspace 레이아웃이 심링크 기반이다.
+export RIPGREP_CONFIG_PATH="$HOME/.config/ripgrep/config"

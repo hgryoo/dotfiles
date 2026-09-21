@@ -1,6 +1,18 @@
--- Bootstrap lazy.nvim
+-- nvim — hgryoo
+--
+-- 설정은 lua/config/ 에, 플러그인 명세는 lua/plugins/ 에 둔다.
+-- chezmoi 가 배포하므로 hgryoo-notebook 과 hgryoo-desktop 이 같은 상태를 갖는다.
+
+vim.g.mapleader = " "
+vim.g.maplocalleader = "\\"
+
+require("config.options")
+require("config.keymaps")
+require("config.autocmds")
+
+-- lazy.nvim 부트스트랩
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
-if not vim.loop.fs_stat(lazypath) then
+if not (vim.uv or vim.loop).fs_stat(lazypath) then
   vim.fn.system({
     "git", "clone", "--filter=blob:none",
     "https://github.com/folke/lazy.nvim.git",
@@ -9,24 +21,8 @@ if not vim.loop.fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(lazypath)
 
--- Basic settings (mirrors .vimrc)
-vim.opt.number = true
-vim.opt.tabstop = 4
-vim.opt.shiftwidth = 4
-vim.opt.expandtab = true
-vim.opt.autoindent = true
-vim.opt.hlsearch = true
-vim.opt.incsearch = true
-vim.opt.ruler = true
-vim.opt.cursorline = true
-vim.opt.background = "dark"
-
--- Leader key
-vim.g.mapleader = " "
-
--- Plugins (minimal starter set — add more as needed)
 require("lazy").setup({
-  -- Add plugins here, e.g.:
-  -- { "nvim-treesitter/nvim-treesitter", build = ":TSUpdate" },
-  -- { "neovim/nvim-lspconfig" },
+  spec = {},
+  checker = { enabled = false },
+  change_detection = { notify = false },
 })
