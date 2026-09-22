@@ -221,8 +221,15 @@ claude` once per account directory. That writes a `SessionStart` hook to
 `settings.json` — additively, so hooks already there stay — which is what lets
 herdr restore Claude sessions across a restart.
 
-`abtop` still wraps itself in tmux, and `cl-tabs` / `clc-tabs` still work on
-whatever tmux sessions are left; neither is on the Claude path any more.
+`abtop` rides along on the same runtime, with one difference: it takes a single
+workspace labelled `abtop` and focuses it instead of stacking tabs, the way
+`tmux new-session -A` used to attach rather than create. tmux tore that session
+down when abtop exited, so the next call started it again; herdr leaves the pane
+at a shell prompt, so the launcher restarts abtop when it finds that pane idle —
+and leaves it alone when something else is running there.
+
+`cl-tabs` / `clc-tabs` still work on whatever tmux sessions are left, but nothing
+in `dot_bash_aliases` starts a tmux session any more.
 
 ## Neovim
 
