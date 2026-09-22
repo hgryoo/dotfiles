@@ -2,10 +2,13 @@
 # Key bindings inspired by https://johngrib.github.io/wiki/tool/alacritty/
 # Linux has no Command key, so we use Control as the modifier.
 #
-# Each binding sends the tmux prefix (C-q = \u0011) plus a command char,
-# so tmux must be configured with:
-#     set -g prefix C-q
-#     bind-key C-q send-prefix
+# Each binding sends the herdr prefix (C-a = \u0001) plus a command char.
+# herdr must be configured with (see ~/.config/herdr/config.toml):
+#     [keys]
+#     prefix = "ctrl+a"
+# herdr sends a literal prefix when you press it twice, so no send-prefix
+# binding is needed. Previously these chords sent C-q (\u0011), which stopped
+# working once the tmux prefix moved to C-a — they were dead bindings.
 
 [window]
 dynamic_padding = true
@@ -26,126 +29,130 @@ history = 10000
 save_to_clipboard = true
 
 # ---------------------------------------------------------------------------
-# Keyboard bindings — \u0011 is Ctrl-Q, the tmux prefix.
+# Keyboard bindings — \u0001 is Ctrl-A, the herdr prefix.
+# Right-hand side is the herdr action name from ~/.config/herdr/config.toml.
 # ---------------------------------------------------------------------------
 
-# New tab (tmux: new-window)
+# New tab (herdr: new_tab = prefix+c)
 [[keyboard.bindings]]
 key = "T"
 mods = "Control"
-chars = "\u0011c"
+chars = "\u0001c"
 
-# Close tab (tmux: kill-window with confirmation)
+# Close pane (herdr: close_pane = prefix+x)
+# NOTE: this takes Ctrl+W away from readline's kill-previous-word inside panes.
 [[keyboard.bindings]]
 key = "W"
 mods = "Control"
-chars = "\u0011X"
+chars = "\u0001x"
 
-# Vertical split, side-by-side (tmux: split-window -h bound to `|`)
+# Vertical split, side-by-side (herdr: split_vertical = prefix+| )
 [[keyboard.bindings]]
 key = "D"
 mods = "Control"
-chars = "\u0011|"
+chars = "\u0001|"
 
-# Horizontal split, top/bottom (tmux: split-window -v bound to `-`)
+# Horizontal split, top/bottom (herdr: split_horizontal = prefix+minus)
 [[keyboard.bindings]]
 key = "D"
 mods = "Control|Shift"
-chars = "\u0011-"
+chars = "\u0001-"
 
-# Cycle panes (tmux: `o`)
+# Next pane (herdr: cycle_pane_next = prefix+o)
 [[keyboard.bindings]]
 key = "O"
 mods = "Control"
-chars = "\u0011o"
+chars = "\u0001o"
 
-# Swap panes (tmux: C-o → \u000f)
+# Last focused pane (herdr: last_pane = prefix+semicolon)
+# Was "swap panes" under tmux (C-o = rotate-window); herdr has no rotate, only
+# directional swap, so this chord now pairs with Ctrl+O as forward/back.
 [[keyboard.bindings]]
 key = "O"
 mods = "Control|Shift"
-chars = "\u0011\u000f"
+chars = "\u0001;"
 
-# Resize panes (tmux: H/J/K/L — requires `bind -r` in tmux for repeat)
+# Resize pane (herdr: resize_pane_* = prefix+shift+H/J/K/L)
 [[keyboard.bindings]]
 key = "Left"
 mods = "Control"
-chars = "\u0011H"
+chars = "\u0001H"
 
 [[keyboard.bindings]]
 key = "Right"
 mods = "Control"
-chars = "\u0011L"
+chars = "\u0001L"
 
 [[keyboard.bindings]]
 key = "Up"
 mods = "Control"
-chars = "\u0011K"
+chars = "\u0001K"
 
 [[keyboard.bindings]]
 key = "Down"
 mods = "Control"
-chars = "\u0011J"
+chars = "\u0001J"
 
-# Tab list / window chooser (tmux: `w`)
+# Workspace picker (herdr: workspace_picker = prefix+w)
 [[keyboard.bindings]]
 key = "E"
 mods = "Control"
-chars = "\u0011w"
+chars = "\u0001w"
 
-# Move tab left  (tmux: C-h → \u0008)
+# Move tab left (herdr: move_tab_previous = prefix+ctrl+h -> \u0008)
 [[keyboard.bindings]]
 key = "Comma"
 mods = "Control|Shift"
-chars = "\u0011\u0008"
+chars = "\u0001\u0008"
 
-# Move tab right (tmux: C-l → \u000c)
+# Move tab right (herdr: move_tab_next = prefix+ctrl+l -> \u000c)
 [[keyboard.bindings]]
 key = "Period"
 mods = "Control|Shift"
-chars = "\u0011\u000c"
+chars = "\u0001\u000c"
 
-# Jump to tab 1..9 (tmux: select-window -t N)
+# Jump to tab 1..9 (herdr: switch_tab = prefix+1..9)
 [[keyboard.bindings]]
 key = "1"
 mods = "Control"
-chars = "\u00111"
+chars = "\u00011"
 
 [[keyboard.bindings]]
 key = "2"
 mods = "Control"
-chars = "\u00112"
+chars = "\u00012"
 
 [[keyboard.bindings]]
 key = "3"
 mods = "Control"
-chars = "\u00113"
+chars = "\u00013"
 
 [[keyboard.bindings]]
 key = "4"
 mods = "Control"
-chars = "\u00114"
+chars = "\u00014"
 
 [[keyboard.bindings]]
 key = "5"
 mods = "Control"
-chars = "\u00115"
+chars = "\u00015"
 
 [[keyboard.bindings]]
 key = "6"
 mods = "Control"
-chars = "\u00116"
+chars = "\u00016"
 
 [[keyboard.bindings]]
 key = "7"
 mods = "Control"
-chars = "\u00117"
+chars = "\u00017"
 
 [[keyboard.bindings]]
 key = "8"
 mods = "Control"
-chars = "\u00118"
+chars = "\u00018"
 
 [[keyboard.bindings]]
 key = "9"
 mods = "Control"
-chars = "\u00119"
+chars = "\u00019"

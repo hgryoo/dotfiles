@@ -1,0 +1,89 @@
+# herdr config — managed by chezmoi (dot_config/herdr/config.toml)
+# 키맵은 ~/.tmux.conf.local (prefix C-a) 의 이식본이다. 근거는 아래 각 절 주석.
+onboarding = false
+
+# ---------------------------------------------------------------------------
+# Keybindings — tmux 시절과 1:1로 맞춘다.
+#
+# herdr 기본값과 다른 곳만 적는다. 적지 않은 액션은 herdr 기본값 그대로다:
+#   prefix+c 새 탭, prefix+z zoom, prefix+[ copy mode, prefix+x close pane,
+#   prefix+shift+x close tab, prefix+w workspace picker, prefix+g goto,
+#   prefix+b sidebar, prefix+1..9 탭 점프, prefix+? 도움말.
+# ---------------------------------------------------------------------------
+[keys]
+# tmux: set -g prefix C-a
+prefix = "ctrl+a"
+
+# tmux: bind | split-window -h  /  bind - split-window -v
+# herdr 의 "vertical" 은 좌우 분할이라 tmux 의 -h 에 대응한다. 기본 prefix+v 도 남긴다.
+split_vertical = ["prefix+v", "prefix+|"]
+split_horizontal = "prefix+minus"
+
+# tmux: bind -r , previous-window  /  bind -r . next-window
+previous_tab = ["prefix+p", "prefix+comma"]
+next_tab = ["prefix+n", "prefix+period"]
+
+# tmux: bind -r C-h swap-window -d -t -1  /  bind -r C-l swap-window -d -t +1
+# (alacritty 의 Ctrl+Shift+, / Ctrl+Shift+. 가 이 자리로 들어온다)
+move_tab_previous = "prefix+ctrl+h"
+move_tab_next = "prefix+ctrl+l"
+
+# tmux: bind -r H/J/K/L resize-pane
+# herdr 기본값은 이 자리가 swap_pane_* 이라 정면충돌한다 → resize 를 우선한다.
+resize_pane_left = "prefix+shift+h"
+resize_pane_down = "prefix+shift+j"
+resize_pane_up = "prefix+shift+k"
+resize_pane_right = "prefix+shift+l"
+
+# swap_pane 은 shift+HJKL 에서 밀려났다. ctrl+HJKL 은 위의 move_tab 이 쓰므로
+# alt+HJKL 로 보낸다 (hjkl 계열 안에 머물러 손이 기억하기 쉽다).
+swap_pane_left = "prefix+alt+h"
+swap_pane_down = "prefix+alt+j"
+swap_pane_up = "prefix+alt+k"
+swap_pane_right = "prefix+alt+l"
+
+# tmux: bind r source-file  /  bind R rename-window
+# herdr 기본값(r=resize mode, shift+r=reload)과 정반대라 뒤집는다.
+reload_config = "prefix+r"
+rename_tab = ["prefix+shift+t", "prefix+shift+r"]
+resize_mode = "prefix+ctrl+r"
+
+# tmux: bind d detach (herdr 기본 prefix+q 도 남긴다)
+detach = ["prefix+q", "prefix+d"]
+
+# tmux: bind o 다음 pane (alacritty Ctrl+O 가 이 자리로 들어온다)
+cycle_pane_next = ["prefix+tab", "prefix+o"]
+
+# tmux 의 prefix+; (last-pane). herdr 은 워크스페이스/탭을 건너뛰어 되돌아간다.
+last_pane = "prefix+semicolon"
+
+# 워크스페이스 = (계정, 디렉터리) 이므로 탭 점프만큼 자주 쓴다.
+# tmux 의 prefix+( / prefix+) (세션 전환) 자리다.
+switch_workspace = "prefix+shift+1..9"
+previous_workspace = "prefix+ctrl+p"
+next_workspace = "prefix+ctrl+n"
+
+# tmux 의 bind C-a send-prefix 는 herdr 에 내장돼 있다 (`herdr config check` 확인):
+# prefix 를 두 번 누르면 pane 에 리터럴 prefix 키가 간다 → C-a C-a = 행 맨앞.
+
+# ---------------------------------------------------------------------------
+# UI — 데스크톱(alacritty, 넓음)과 Termux 세로(40~60컬럼)를 한 파일로 같이 쓴다.
+# 폭에 따라 갈리는 건 mobile_width_threshold 가 알아서 하고,
+# 나머지는 양쪽에서 다 이득인 값만 건드린다.
+# ---------------------------------------------------------------------------
+[ui]
+# 기본 64 → 80. Termux 가로(80~100컬럼)에서도 단일 컬럼 레이아웃이 잡힌다.
+mobile_width_threshold = 80
+
+# 폰 화면에서 색 점(dots)은 서로 구분이 안 된다. 모양으로도 갈리는 기호를 쓴다.
+status_indicators = "symbols"
+
+# 좁은 화면에서 행/열을 되찾는다. 데스크톱에서도 tmux 식 밀집 분할이 된다.
+hide_tab_bar_when_single_tab = true
+pane_scrollbars = false
+pane_gaps = false
+pane_outer_borders = false
+
+# 탭 이름은 herdr 기본값(1, 2, 3…)에 맡긴다 — .bash_aliases 에 적어둔 방침이고,
+# 폰에서 탭을 열 때마다 이름을 타이핑하지 않아도 된다.
+prompt_new_tab_name = false
