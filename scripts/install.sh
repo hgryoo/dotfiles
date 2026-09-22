@@ -303,6 +303,49 @@ install_claude_code() {
 }
 
 # ---------------------------------------------------------------------------
+# herdr — the runtime the Claude launchers live on
+# https://herdr.dev · https://github.com/herdrdev/herdr
+#
+# Replaces tmux for cl / clc / clt / vcl / vclc / vclt (see dot_bash_aliases):
+# a background server owns the panes, so detaching or dropping an SSH
+# connection no longer stops the agent, and one sidebar rolls up every
+# workspace's agent state (working / blocked / idle) instead of cl-tabs
+# gathering scattered tmux sessions after the fact.
+#
+# The Claude integration is per config directory: it writes a SessionStart
+# hook into $CLAUDE_CONFIG_DIR/hooks/ and registers it in that account's
+# settings.json, so it has to be installed once per account. It is additive —
+# hooks already in settings.json are kept — and it runs after
+# install_claude_settings has seeded those directories.
+# ---------------------------------------------------------------------------
+HERDR_CLAUDE_DIRS=(
+  "$HOME/.claude"
+  "$HOME/.claude-cubrid"
+  "$HOME/.cubrid-cubrid1"
+)
+
+install_herdr() {
+  if command -v herdr &>/dev/null; then
+    echo ">>> herdr already installed ($(herdr --version 2>/dev/null | head -n1)), skipping binary."
+  else
+    echo ">>> Installing herdr..."
+    curl -fsSL https://herdr.dev/install.sh | sh
+    export PATH="$HOME/.local/bin:$PATH"
+  fi
+
+  if ! command -v herdr &>/dev/null; then
+    echo "!!! herdr not on PATH after install — cl / clc / clt cannot start." >&2
+    return
+  fi
+
+  local dir
+  for dir in "${HERDR_CLAUDE_DIRS[@]}"; do
+    [ -d "$dir" ] || continue
+    CLAUDE_CONFIG_DIR="$dir" herdr integration install claude \
+      || echo "WARNING: herdr claude integration failed for $dir" >&2
+  done
+}
+# ---------------------------------------------------------------------------
 # uv (Python package/project manager — replaces pyenv)
 # ---------------------------------------------------------------------------
 install_uv() {
@@ -1027,6 +1070,7 @@ print_summary() {
   command -v cubrid-jira-fetch &>/dev/null && echo "jira-fetch: installed"                                || echo "jira-fetch: not found"
   command -v abtop      &>/dev/null && echo "abtop     : $(abtop --version 2>/dev/null | head -n1)"       || echo "abtop     : not found"
   command -v claude &>/dev/null && echo "claude : $(claude --version | head -n1)" || echo "claude : not found"
+  command -v herdr  &>/dev/null && echo "herdr  : $(herdr --version 2>/dev/null | head -n1)"       || echo "herdr  : not found"
   check_claude_accounts
   command -v omc    &>/dev/null && echo "omc    : $(omc --version 2>/dev/null || echo 'installed')" || echo "omc    : not found"
   command -v code-review-graph &>/dev/null && echo "code-review-graph: $(code-review-graph --version 2>/dev/null | head -n1 || echo installed)" || echo "code-review-graph: not found"
@@ -1081,6 +1125,7 @@ main() {
   install_karpathy_skills
   install_scaffold_skills
   install_claude_code
+  install_herdr
   install_code_review_graph
   install_token_savior
 

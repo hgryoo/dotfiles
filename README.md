@@ -138,7 +138,7 @@ stripped on deploy, so `bin/executable_connect-vpn.sh` lands as
 
 | Script | Purpose |
 |---|---|
-| `cl-tabs.sh` | Gather the Claude tmux sessions under a path into one tabbed session (`clc-tabs` = `.claude-cubrid` variant) |
+| `cl-tabs.sh` | Legacy (tmux): gather the Claude tmux sessions under a path into one tabbed session (`clc-tabs` = `.claude-cubrid` variant). The launchers run on herdr now, whose sidebar does this continuously |
 | `cubrid-clone.sh` | Clone cubrid/cubrid and register the origin / hgryoo / cub_sys remotes |
 | `clean-cores` | Delete core **dump files** only — never a directory named `core` |
 | `data-usage` | Per-directory disk usage for a path, largest first |
@@ -154,6 +154,75 @@ stripped on deploy, so `bin/executable_connect-vpn.sh` lands as
 > prompts for the values and creates the link.
 
 ---
+
+## Claude launchers, and the runtime under them
+
+`cl` / `clc` / `clt` (and `vcl` / `vclc` / `vclt`) live in `dot_bash_aliases`.
+They pick an account and start Claude Code inside [herdr](https://herdr.dev),
+the terminal workspace manager that replaced tmux here on 2026-09-22.
+
+| Command | Account | `CLAUDE_CONFIG_DIR` |
+|---|---|---|
+| `cl` | personal | `~/.claude` |
+| `clc` | cubrid (work) | `~/.claude-cubrid` |
+| `clt` | test | `~/.cubrid-cubrid1` |
+| `vcl` / `vclc` / `vclt` | the same three, with `nvim .` beside Claude | as above |
+| `cl --incognito` | throwaway, seeded only from the personal login | `~/.claude-incognito/<pid>-<ts>` |
+| `clm` | an isolated extra session on one account, in place | `~/.claude-sessions/<pid>-<ts>` |
+| `claude-main` / `claude-cubrid` | raw escape hatch, no herdr | `~/.claude` / `~/.claude-cubrid` |
+
+### Why herdr instead of tmux
+
+Under tmux every launch was its own session named `claude-<slug>-<pid>`, and
+finding the one that had stopped to ask a question meant attaching to them one
+at a time. That is what `cl-tabs` / `clc-tabs` were for: they gathered the
+sessions under a path into one tabbed session, after the fact.
+
+herdr's model fits the shape of the work better:
+
+- **workspace** = one `(account, directory)` pair, labelled `cl:<slug>`,
+  `clc:<slug>` or `clt:<slug>`. The tag carries what the `claude-` / `claudec-`
+  session-name prefix used to.
+- **tab** = one Claude session inside that workspace. Running `clc` twice in
+  the same directory reuses the workspace and adds a tab, rather than
+  scattering two more sessions.
+- the sidebar marks every pane `working`, `blocked` or `idle` and rolls that up
+  per workspace, so the stuck one announces itself. That is `cl-tabs`'s job,
+  done continuously instead of on demand.
+
+The prefix key is `ctrl+b`, as in tmux; `prefix+q` detaches and `herdr`
+reattaches. The background server owns the panes, so closing the terminal or
+dropping an SSH connection no longer stops an agent.
+
+### How a launcher wires a pane
+
+`_claude_run` does the plumbing:
+
+1. `_herdr_up` starts the background server when the socket is not there.
+   `workspace create` needs a server, and the server outlives every client.
+2. `workspace create` — or `tab create`, when a workspace with that label
+   already exists — opens a pane with `--env CLAUDE_CONFIG_DIR=<account>`. The
+   account comes from the pane's environment, not from the command line.
+3. `pane run` sends `command claude …` into that pane. `command` is what skips
+   the `claude` shell function below it.
+4. `herdr` attaches.
+
+Inside a herdr pane (`HERDR_ENV=1`), or off a TTY, every launcher runs Claude in
+place instead: herdr blocks nested launches by design, and a pane is already
+persistent.
+
+Because step 2 injects `CLAUDE_CONFIG_DIR`, the bare `claude` wrapper no longer
+asks which account to use when one is already set — it only prompts from a
+plain shell.
+
+`install.sh` installs the binary and then runs `herdr integration install
+claude` once per account directory. That writes a `SessionStart` hook to
+`<account>/hooks/herdr-agent-state.sh` and registers it in that account's
+`settings.json` — additively, so hooks already there stay — which is what lets
+herdr restore Claude sessions across a restart.
+
+`abtop` still wraps itself in tmux, and `cl-tabs` / `clc-tabs` still work on
+whatever tmux sessions are left; neither is on the Claude path any more.
 
 ## Neovim
 
@@ -223,18 +292,19 @@ CLAUDE_CONFIG_DIR=$HOME/.claude nvim
 ```
 
 `<leader>ac` opens Claude in a split inside nvim. For the usual layout — Claude
-already running in another tmux pane — run `/ide` there and it will find the
+already running in another herdr pane — run `/ide` there and it will find the
 editor, as long as both are on the same account.
 
 `vcl` / `vclc` / `vclt` (in `dot_bash_aliases`) start that layout in one step:
-the same account as `cl` / `clc` / `clt`, a tmux window with `nvim .` on the
-left and Claude on the right, both in the current directory, and already
+the same account as `cl` / `clc` / `clt`, a herdr tab with `nvim .` on the left
+and Claude on the right 40%, both in the current directory, and already
 connected to each other. They read the port out of the lock file the editor
 just wrote and pass it as `CLAUDE_CODE_SSE_PORT`, rather than relying on
 `--ide` alone — `--ide` only auto-connects when exactly one editor is running,
 which stops being true the moment a second project is open. Arguments go to
-Claude, and the session name follows the `claude-` / `claudec-` convention so
-`cl-tabs` and `clc-tabs` still collect them.
+Claude, and the workspace label follows the same `cl:` / `clc:` / `clt:`
+convention as `cl` / `clc` / `clt`, so repeat runs in one directory stack up as
+tabs in a single workspace.
 
 ### clangd and compile_commands.json
 
@@ -278,6 +348,7 @@ for .cpp, google-java-format for .java), so nothing formats on save and
 | lazydiff | `cargo install` |
 | lazygit | GitHub release binary |
 | [Claude Code](https://claude.ai) | curl installer |
+| [herdr](https://herdr.dev) (runtime for `cl` / `clc`) | curl installer + `herdr integration install claude` per account |
 | oh-my-claudecode (omc) | npm |
 
 ### CUBRID tools (`cubrid/tools/`, git submodules)

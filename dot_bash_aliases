@@ -64,15 +64,23 @@ use-cubrid() {
   echo "CUBRID environment set to: $CUBRID"
 }
 
-# --- Claude Code 계정 프로필 전환 (added 2026-06-01, tmux 래핑 복원 2026-06-18) ---
-# 기본 계정(개인): ~/.claude (hyunggyu.ryoo@gmail.com)
-# cubrid 계정(회사): ~/.claude-cubrid (hgryoo@cubrid.com)
+# --- Claude Code 계정 프로필 전환 (added 2026-06-01, 런타임 tmux → herdr 2026-09-22) ---
+# 기본 계정(개인): ~/.claude          (hyunggyu.ryoo@gmail.com)
+# cubrid 계정(회사): ~/.claude-cubrid  (hgryoo@cubrid.com)
+# 테스트 계정:       ~/.cubrid-cubrid1
 #
-# claude-main / claude-cubrid 는 tmux 없이 직접 실행하는 탈출구(raw)로 남겨둔다.
+# 런타임은 herdr(https://herdr.dev) 다. tmux 와 모델이 다르다:
+#   tmux  — 세션 하나에 claude 하나. 흩어진 세션을 나중에 cl-tabs 로 긁어모았다.
+#   herdr — 워크스페이스 = (계정, 디렉터리), 그 안의 탭 = 개별 claude 세션.
+#           사이드바가 모든 워크스페이스의 agent 상태(working/blocked/idle)를 상시로
+#           굴려 보여주므로, cl-tabs / clc-tabs 가 뒤늦게 하던 일이 기본으로 붙는다.
+#           detach 는 prefix+q (ctrl+b 는 tmux 와 같다), 복귀는 `herdr`.
+#
+# claude-main / claude-cubrid 는 herdr 없이 직접 실행하는 탈출구(raw)로 남겨둔다.
 alias claude-main='CLAUDE_CONFIG_DIR=$HOME/.claude command claude'
 alias claude-cubrid='CLAUDE_CONFIG_DIR=$HOME/.claude-cubrid command claude'
 
-# 현재 경로 마지막 2개 컴포넌트를 tmux 세션 이름용 슬러그로 변환한다.
+# 현재 경로 마지막 2개 컴포넌트를 워크스페이스 라벨용 슬러그로 변환한다.
 _claude_dir_slug() {
   local dir_tail dir_slug
   dir_tail=$(printf %s "$PWD" | awk -F/ '{n=NF; a=(n>1?$(n-1):""); b=$n; print (a==""?b:a"-"b)}')
@@ -80,30 +88,104 @@ _claude_dir_slug() {
   printf %s "${dir_slug:-root}"
 }
 
-# 공통: Claude Code 를 tmux 세션 안에서 실행하는 래퍼.
+# 계정 → 라벨 태그. 사이드바에서 어느 계정인지 한눈에 보이도록 라벨 앞에 붙는다.
+# (tmux 시절의 claude- / claudec- 세션 이름 접두사가 하던 구분이다.)
+_claude_tag() {
+  case "$(basename -- "$1")" in
+    .claude-cubrid)  printf clc ;;
+    .cubrid-cubrid1) printf clt ;;
+    *)               printf cl  ;;
+  esac
+}
+
+# `printf '%q '` 는 인자가 하나도 없으면 빈 문자열을 '' 로 찍어 낸다.
+# 그대로 명령줄에 붙이면 claude 가 빈 인자를 하나 받는다 → 인자가 있을 때만 찍는다.
+_claude_qargs() { [ "$#" -gt 0 ] && printf '%q ' "$@"; }
+
+# herdr 서버(백그라운드)가 떠 있도록 보장한다.
+# workspace/pane 을 만드는 CLI 는 소켓이 있어야 동작하는데, 서버는 클라이언트가
+# 붙어 있는지와 무관하게 산다 → attach 전에 먼저 띄워 두고 레이아웃을 만든다.
+_herdr_up() {
+  command -v herdr >/dev/null 2>&1 || {
+    echo "herdr 가 설치돼 있지 않습니다: curl -fsSL https://herdr.dev/install.sh | sh" >&2
+    return 1
+  }
+  herdr status server 2>/dev/null | grep -q '^status: running' && return 0
+
+  # 서버는 오래 살고, 이 서버가 띄우는 모든 pane 이 그 환경을 물려받는다.
+  # Claude Code 세션 안에서 cl 을 부르면(에이전트가 에이전트를 띄우는 자리) 부모의
+  # CLAUDE_CODE_* 표식까지 통째로 상속돼, 새 pane 의 claude 가 스스로를 자식 세션으로
+  # 알고 트랜스크립트 저장을 꺼 버린다. 계정(CLAUDE_CONFIG_DIR)도 pane 마다 --env 로
+  # 따로 넣으므로, 서버만큼은 CLAUDE* 를 모두 턴 환경에서 띄운다.
+  local -a strip=() ; local v
+  while IFS='=' read -r v _; do
+    case "$v" in CLAUDECODE|CLAUDE_*) strip+=( -u "$v" ) ;; esac
+  done < <(env)
+
+  if command -v setsid >/dev/null 2>&1; then
+    setsid env "${strip[@]}" herdr server >/dev/null 2>&1 < /dev/null &
+  else
+    nohup env "${strip[@]}" herdr server >/dev/null 2>&1 < /dev/null &
+  fi
+  local i
+  for i in $(seq 1 40); do
+    herdr status server 2>/dev/null | grep -q '^status: running' && return 0
+    sleep 0.25
+  done
+  echo "herdr 서버가 뜨지 않았습니다 — ~/.config/herdr/herdr-server.log 를 보세요" >&2
+  return 1
+}
+
+# 라벨이 같은 워크스페이스의 id (없으면 빈 문자열).
+_herdr_ws_id() {
+  herdr workspace list 2>/dev/null \
+    | jq -r --arg l "$1" '.result.workspaces[]? | select(.label == $l) | .workspace_id' \
+    | head -1
+}
+
+# (계정, 디렉터리) 자리를 잡고 그 안에 새 pane 을 하나 내준다 → pane id 를 찍는다.
+# 같은 자리가 이미 있으면 워크스페이스를 재사용하고 탭만 하나 더 연다.
+# 탭 이름은 herdr 기본값(1, 2, 3…)에 맡긴다 — 어느 계정의 어느 경로인지는 이미
+# 워크스페이스 라벨이 들고 있고, 탭은 그 안에서 몇 번째 세션이냐만 구분하면 된다.
+# 인자로 받은 --env 들은 그 pane 의 프로세스 환경으로 들어간다.
+_herdr_claude_pane() {
+  local label="$1"; shift
+  local ws
+  ws=$(_herdr_ws_id "$label")
+  if [ -n "$ws" ]; then
+    herdr tab create --workspace "$ws" --cwd "$PWD" "$@" --focus \
+      | jq -r '.result.root_pane.pane_id // empty'
+  else
+    herdr workspace create --cwd "$PWD" --label "$label" "$@" --focus \
+      | jq -r '.result.root_pane.pane_id // empty'
+  fi
+}
+
+# 공통: Claude Code 를 herdr pane 안에서 실행하는 래퍼.
 #   _claude_run <config_dir> [claude 인자...]
-# - 이미 tmux 안($TMUX)이거나 stdout 이 TTY 가 아니면(파이프/비대화형) in-place 실행.
-# - 아니면 현재 경로 마지막 2개 컴포넌트로 이름 붙인 새 tmux 세션을 띄운다.
+# - 이미 herdr pane 안($HERDR_ENV)이거나 stdout 이 TTY 가 아니면(파이프/비대화형) in-place 실행.
+# - 아니면 (계정, 경로) 워크스페이스에 pane 을 하나 열어 거기서 띄우고 attach 한다.
 _claude_run() {
   local config_dir="$1"; shift
-  if [ -n "$TMUX" ] || [ ! -t 1 ]; then
+  if [ "${HERDR_ENV:-}" = 1 ] || [ ! -t 1 ]; then
     CLAUDE_CONFIG_DIR="$config_dir" command claude "$@"
     return $?
   fi
-  # tmux 세션 이름엔 '.' ':' 불가 → 마지막 2개 경로 컴포넌트를 슬러그화.
-  local dir_slug
-  dir_slug=$(_claude_dir_slug)
-  # 세션 이름 접두사로 계정 구분: ~/.claude → claude- (cl), ~/.claude-cubrid → claudec- (clc).
-  # cl-tabs / clc-tabs 가 이 접두사로 계정별 세션을 골라낸다.
-  local prefix=claude
-  [ "$(basename -- "$config_dir")" = ".claude-cubrid" ] && prefix=claudec
-  local session="${prefix}-${dir_slug}-$$"
-  local args
-  args=$(printf '%q ' "$@")
-  tmux new-session -s "$session" "CLAUDE_CONFIG_DIR=$(printf %q "$config_dir") command claude $args"
+
+  _herdr_up || return 1
+
+  local slug tag pane
+  slug=$(_claude_dir_slug)
+  tag=$(_claude_tag "$config_dir")
+  pane=$(_herdr_claude_pane "${tag}:${slug}" --env "CLAUDE_CONFIG_DIR=$config_dir")
+  [ -n "$pane" ] || { echo "herdr: pane 을 만들지 못했습니다" >&2; return 1; }
+
+  # `command claude` — 아래 claude() 래퍼를 건너뛰고 실제 바이너리를 부른다.
+  herdr pane run "$pane" "command claude $(_claude_qargs "$@")" >/dev/null
+  herdr
 }
 
-# 짧은 진입점: cl → 개인 계정, clc → 회사(cubrid) 계정 (둘 다 tmux 세션 안에서 실행).
+# 짧은 진입점: cl → 개인 계정, clc → 회사(cubrid) 계정, clt → 테스트 계정.
 cl() {
   # cl --incognito … → 격리 세션 (아래 _claude_incognito 주석 참고)
   if [ "$1" = "--incognito" ]; then shift; _claude_incognito "$@"; return $?; fi
@@ -112,9 +194,15 @@ cl() {
 clc() { _claude_run "$HOME/.claude-cubrid" --dangerously-skip-permissions --effort xhigh "$@"; }
 clt() { _claude_run "$HOME/.cubrid-cubrid1" --dangerously-skip-permissions --effort xhigh "$@"; }
 
-# `claude` 만 입력하면 개인(cl) / 회사(clc) 중 선택하도록 묻고, 역시 tmux 세션 안에서 실행.
-# 프롬프트 없이 바로 쓰려면 cl / clc 를 사용.
+# `claude` 만 입력하면 개인(cl) / 회사(clc) 중 선택하도록 묻고, 역시 herdr pane 안에서 실행.
+# 단, 계정이 이미 정해진 자리에서는 묻지 않는다: herdr 은 pane 에 CLAUDE_CONFIG_DIR 을
+# 주입하므로, pane 안에서 `claude` 를 부르면 그 pane 의 계정을 그대로 쓴다.
+# 프롬프트 없이 쓰려면 cl / clc / clt.
 claude() {
+  if [ -n "${CLAUDE_CONFIG_DIR:-}" ]; then
+    command claude "$@"
+    return $?
+  fi
   local sel
   echo "어떤 Claude 계정으로 실행할까요?" >&2
   echo "  1) cl  → 개인 계정 (hyunggyu.ryoo@gmail.com)  [~/.claude]" >&2
@@ -148,7 +236,7 @@ _claude_incognito() {
   mkdir -p "$root" || return 1
   chmod 700 "$root"
 
-  # 비정상 종료(SIGKILL, tmux kill-session)로 남은 이전 잔여물 청소:
+  # 비정상 종료(SIGKILL, pane 강제 종료)로 남은 이전 잔여물 청소:
   # 디렉토리 이름의 PID 가 이미 죽었으면 삭제한다.
   local d pid
   for d in "$root"/*-*; do
@@ -174,7 +262,7 @@ _claude_incognito() {
     --effort xhigh
   )
 
-  if [ -n "$TMUX" ] || [ ! -t 1 ]; then
+  if [ "${HERDR_ENV:-}" = 1 ] || [ ! -t 1 ]; then
     ( trap 'rm -rf "$sess"' EXIT
       export CLAUDE_CONFIG_DIR="$sess" TMPDIR="$sess/tmp" \
              DISABLE_TELEMETRY=1 DISABLE_ERROR_REPORTING=1 \
@@ -183,53 +271,49 @@ _claude_incognito() {
     return $?
   fi
 
-  # 정리를 tmux 명령 안에서 끝낸다 → detach 해도 살아있는 세션의 디렉토리가 지워지지 않는다.
-  local envstr cmd
-  envstr="CLAUDE_CONFIG_DIR=$(printf %q "$sess") TMPDIR=$(printf %q "$sess/tmp")"
-  envstr="$envstr DISABLE_TELEMETRY=1 DISABLE_ERROR_REPORTING=1 CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1"
-  cmd="$envstr command claude $(printf '%q ' "${opts[@]}" "$@"); rm -rf $(printf %q "$sess")"
-  tmux new-session -s "claudei-$(_claude_dir_slug)-$$" "$cmd"
+  _herdr_up || { rm -rf "$sess"; return 1; }
+
+  # 격리 세션은 재사용할 자리가 없다 → 매번 제 워크스페이스를 판다.
+  local pane
+  pane=$(herdr workspace create --cwd "$PWD" --label "cli:$(_claude_dir_slug)" \
+           --env "CLAUDE_CONFIG_DIR=$sess" --env "TMPDIR=$sess/tmp" \
+           --env DISABLE_TELEMETRY=1 --env DISABLE_ERROR_REPORTING=1 \
+           --env CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 --focus \
+         | jq -r '.result.root_pane.pane_id // empty')
+  [ -n "$pane" ] || { echo "herdr: pane 을 만들지 못했습니다" >&2; rm -rf "$sess"; return 1; }
+
+  # 정리를 pane 안에서 끝낸다 → detach 해도 살아있는 세션의 디렉토리가 지워지지 않는다.
+  herdr pane run "$pane" \
+    "command claude $(_claude_qargs "${opts[@]}" "$@"); rm -rf $(printf %q "$sess")" >/dev/null
+  herdr
 }
 
 # --- nvim + Claude 를 한 화면에 (added 2026-09-21) ---
 # vcl / vclc / vclt : cl / clc / clt 와 같은 계정으로, 현재 경로에서 nvim(왼쪽)과
-# claude(오른쪽)를 한 tmux 창의 두 pane 으로 띄운다. 인자는 claude 로 넘어간다.
+# claude(오른쪽)를 한 탭의 두 pane 으로 띄운다. 인자는 claude 로 넘어간다.
 #
 # 핵심은 두 pane 이 서로 붙는다는 것이다. claudecode.nvim 은
-# $CLAUDE_CONFIG_DIR/ide/<port>.lock 에 락을 쓰므로, nvim 에도 같은 계정을 주고
-# 새로 생긴 락에서 포트를 읽어 claude 쪽에 CLAUDE_CODE_SSE_PORT 로 넘긴다.
+# $CLAUDE_CONFIG_DIR/ide/<port>.lock 에 락을 쓰므로, nvim pane 에도 같은 계정을 주고
+# 새로 생긴 락에서 포트를 읽어 claude pane 에 CLAUDE_CODE_SSE_PORT 로 넘긴다.
 # --ide 만 쓰면 "정확히 하나"일 때만 자동 연결이라, 에디터를 여러 개 띄워 두면 실패한다.
 #
-# 세션 이름은 _claude_run 과 같은 규칙(claude- / claudec-)이라 cl-tabs / clc-tabs 가
-# 이 세션들도 그대로 모아 준다.
+# 라벨은 _claude_run 과 같은 규칙(cl: / clc: / clt:)이라 같은 (계정, 경로) 워크스페이스에
+# 탭으로 모인다.
 _claude_nvim_run() {
   local config_dir="$1"; shift
-  command -v tmux >/dev/null || { echo "tmux 가 필요합니다" >&2; return 1; }
-
-  local qcd qargs
-  qcd=$(printf %q "$config_dir")
-  qargs=$(printf '%q ' "$@")
+  _herdr_up || return 1
 
   # 이 nvim 이 새로 만드는 락만 골라내기 위해 먼저 스냅샷.
-  local before=" "
-  local f
+  local before=" " f
   for f in "$config_dir"/ide/*.lock; do [ -e "$f" ] && before="$before$f "; done
 
-  # 세션/창 이름: _claude_run / _claude_incognito 와 같은 슬러그 헬퍼를 쓴다.
-  local dir_slug prefix session pane
-  dir_slug=$(_claude_dir_slug)
-  prefix=claude
-  [ "$(basename -- "$config_dir")" = ".claude-cubrid" ] && prefix=claudec
-  session="${prefix}-${dir_slug}-$$"
-
-  # nvim pane 부터. `nvim .` 이라 oil 이 그 디렉터리를 바로 보여준다.
-  if [ -n "$TMUX" ]; then
-    pane=$(tmux new-window -P -F '#{pane_id}' -n "$dir_slug" -c "$PWD" \
-             "CLAUDE_CONFIG_DIR=$qcd nvim .")
-  else
-    pane=$(tmux new-session -d -P -F '#{pane_id}' -s "$session" -c "$PWD" \
-             "CLAUDE_CONFIG_DIR=$qcd nvim .")
-  fi
+  # 왼쪽 pane = nvim. `nvim .` 이라 oil 이 그 디렉터리를 바로 보여준다.
+  local slug tag left
+  slug=$(_claude_dir_slug)
+  tag=$(_claude_tag "$config_dir")
+  left=$(_herdr_claude_pane "${tag}:${slug}" --env "CLAUDE_CONFIG_DIR=$config_dir")
+  [ -n "$left" ] || { echo "herdr: nvim pane 을 만들지 못했습니다" >&2; return 1; }
+  herdr pane run "$left" 'nvim .' >/dev/null
 
   # 락이 뜨기를 최대 10초 기다린다. 못 찾으면 포트 없이(=--ide 에 맡기고) 진행.
   local port="" i
@@ -243,12 +327,18 @@ _claude_nvim_run() {
     sleep 0.25
   done
 
-  local env_prefix="CLAUDE_CONFIG_DIR=$qcd ENABLE_IDE_INTEGRATION=true"
-  [ -n "$port" ] && env_prefix="$env_prefix CLAUDE_CODE_SSE_PORT=$port"
+  # 오른쪽 40% = claude. herdr 의 --ratio 는 '쪼개진 원래 pane' 의 몫이라 0.6 이 왼쪽 60%.
+  local -a envs=( --env "CLAUDE_CONFIG_DIR=$config_dir" --env ENABLE_IDE_INTEGRATION=true )
+  [ -n "$port" ] && envs+=( --env "CLAUDE_CODE_SSE_PORT=$port" )
 
-  tmux split-window -h -l 40% -t "$pane" -c "$PWD" "$env_prefix command claude --ide $qargs"
-  tmux select-pane -t "$pane"
-  [ -z "$TMUX" ] && tmux attach -t "$session"
+  local right
+  right=$(herdr pane split --pane "$left" --direction right --ratio 0.6 --cwd "$PWD" \
+            "${envs[@]}" --no-focus | jq -r '.result.pane.pane_id // empty')
+  [ -n "$right" ] || { echo "herdr: claude pane 을 만들지 못했습니다" >&2; return 1; }
+  herdr pane run "$right" "command claude --ide $(_claude_qargs "$@")" >/dev/null
+
+  # 이미 herdr 안이면 레이아웃만 만들고 끝낸다 — herdr 은 중첩 실행을 막는다.
+  [ "${HERDR_ENV:-}" = 1 ] || herdr
 }
 
 vcl()  { _claude_nvim_run "$HOME/.claude"         --dangerously-skip-permissions --effort xhigh "$@"; }
