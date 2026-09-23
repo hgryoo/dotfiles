@@ -227,10 +227,10 @@ if in_group hgryoo && [ -f "$DATA_ROOT/hgryoo/scaffold/install.sh" ]; then
 fi
 
 if in_group hgryoo && [ -f "$DATA_ROOT/hgryoo/presentation-workspace/install.sh" ]; then
-  # Same post-clone wiring for the presentation-workspace skill. It ships its own
-  # install.sh (symlinks skills/* into ~/.claude/skills and $CLAUDE_CONFIG_DIR),
-  # so it stays a separate repo rather than another entry in the scaffold.
-  echo ">>> install presentation-workspace skill (-> ~/.claude/skills)"
+  # Same post-clone wiring for presentation-workspace. It ships its own
+  # install.sh: skills/* into every Claude config dir, and bin/pw into ~/bin so
+  # the command works from any repo. A separate repo, not a scaffold entry.
+  echo ">>> install presentation-workspace (skill + ~/bin/pw)"
   bash "$DATA_ROOT/hgryoo/presentation-workspace/install.sh" \
     || echo "!!! presentation-workspace install.sh reported an error — run it by hand." >&2
 fi

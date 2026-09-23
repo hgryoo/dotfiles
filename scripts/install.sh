@@ -278,11 +278,12 @@ install_scaffold_skills() {
 }
 
 # ---------------------------------------------------------------------------
-# presentation-workspace skill → ~/.claude/skills/
+# presentation-workspace → Claude skills + ~/bin/pw
 # The talk-authoring system (doc-presentation-workspace) lives in its own repo
 # rather than in the scaffold: it carries slide templates, a tone spec and a
 # notes-panel server, so it versions on its own cadence. Its install.sh symlinks
-# skills/* into ~/.claude/skills and $CLAUDE_CONFIG_DIR — idempotent.
+# skills/* into every Claude config dir and bin/pw into ~/bin, so `pw` works from
+# any repo. Idempotent.
 # ---------------------------------------------------------------------------
 install_presentation_workspace() {
   local candidates=(
@@ -300,7 +301,7 @@ install_presentation_workspace() {
     echo ">>> Skipped — clone it with 'bash bootstrap.sh --data', then re-run install.sh."
     return
   fi
-  echo ">>> Installing presentation-workspace skill from $repo ..."
+  echo ">>> Installing presentation-workspace (skill + ~/bin/pw) from $repo ..."
   bash "$repo/install.sh" || echo "WARNING: presentation-workspace install.sh reported an error (continuing)."
 }
 
