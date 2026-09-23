@@ -739,28 +739,61 @@ install_tmux() {
 # ---------------------------------------------------------------------------
 # Alacritty (GPU-accelerated terminal emulator)
 # Config is deployed by chezmoi to ~/.config/alacritty/alacritty.toml
+#
+# Built with cargo on both distros. Ubuntu's apt package is 0.13.x, and
+# Alacritty before 0.15.0 mishandles the kitty keyboard protocol (herdr's
+# troubleshooting page names 0.15.0 as the fixed version). Claude Code turns
+# that protocol on inside herdr, and with ibus-hangul the space after a Hangul
+# word then lands one syllable early: "확실히 낫다" -> "확실 히낫다".
+# gnome-terminal attached to the same herdr pane typed it correctly.
+# The apt copy is removed so only one alacritty exists. cargo installs no
+# desktop entry, so upstream's is copied from the crate source under the file
+# ID the apt package used (Alacritty.desktop), which keeps a dock pin working.
+# Rocky: Alacritty isn't in EPEL for Rocky 9, so cargo was already the path.
 # ---------------------------------------------------------------------------
+ALACRITTY_MIN_VERSION=0.15.0
+
 install_alacritty() {
-  if command -v alacritty &>/dev/null; then
-    echo ">>> alacritty already installed ($(alacritty --version | head -n1)), skipping."
+  local have
+  have=$(alacritty --version 2>/dev/null | awk '{print $2}')
+  if [ -n "$have" ] \
+     && [ "$(printf '%s\n' "$ALACRITTY_MIN_VERSION" "$have" | sort -V | head -n1)" = "$ALACRITTY_MIN_VERSION" ]; then
+    echo ">>> alacritty $have already installed (>= $ALACRITTY_MIN_VERSION), skipping."
     return
   fi
-  echo ">>> Installing alacritty..."
+  if ! command -v cargo &>/dev/null; then
+    echo "WARNING: cargo not found — skipping alacritty install." >&2
+    return
+  fi
+  echo ">>> Installing alacritty with cargo${have:+ (replacing $have)}..."
   case "$OS_ID" in
     ubuntu)
-      sudo apt-get install -y alacritty
+      sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+        cmake g++ pkg-config libfontconfig1-dev libxcb-xfixes0-dev \
+        libxkbcommon-dev python3
       ;;
     rocky)
-      # Alacritty isn't in EPEL for Rocky 9 — fall back to cargo.
-      if command -v cargo &>/dev/null; then
-        sudo dnf install -y cmake freetype-devel fontconfig-devel \
-          libxcb-devel libxkbcommon-devel g++
-        cargo install alacritty
-      else
-        echo "WARNING: cargo not found — skipping alacritty install on Rocky." >&2
-      fi
+      sudo dnf install -y cmake freetype-devel fontconfig-devel \
+        libxcb-devel libxkbcommon-devel g++
       ;;
   esac
+  cargo install alacritty --locked
+
+  if [ "$OS_ID" = ubuntu ] && dpkg -s alacritty &>/dev/null; then
+    sudo apt-get remove -y alacritty
+  fi
+
+  local bin="$HOME/.cargo/bin/alacritty" ver extra
+  ver=$("$bin" --version | awk '{print $2}')
+  extra=$(ls -d "${CARGO_HOME:-$HOME/.cargo}"/registry/src/*/alacritty-"$ver"/extra 2>/dev/null | head -n1)
+  if [ -z "$extra" ]; then
+    echo "WARNING: alacritty $ver crate source not found — no desktop entry installed." >&2
+    return
+  fi
+  mkdir -p "$HOME/.local/share/applications" "$HOME/.local/share/icons/hicolor/scalable/apps"
+  sed "s|^\(Try\)\?Exec=alacritty|\1Exec=$bin|" "$extra/linux/Alacritty.desktop" \
+    > "$HOME/.local/share/applications/Alacritty.desktop"
+  cp "$extra/logo/alacritty-term.svg" "$HOME/.local/share/icons/hicolor/scalable/apps/Alacritty.svg"
 }
 
 # ---------------------------------------------------------------------------
@@ -1058,9 +1091,15 @@ XML
     gsettings set org.gnome.desktop.input-sources sources \
       "[('xkb', 'us'), ('ibus', 'hangul')]" 2>/dev/null \
       && echo ">>> Input sources set to us + hangul."
+    # With event forwarding on (the schema default), Alacritty's XIM input
+    # sometimes lost the space that ends a Hangul syllable: "게 이렇게" came
+    # out "게이렇게" even in plain `cat`. Turning it off fixed that.
+    gsettings set org.freedesktop.ibus.engine.hangul use-event-forwarding false 2>/dev/null \
+      && echo ">>> ibus-hangul event forwarding off."
   else
     echo ">>> No desktop session here — add Korean (Hangul) in Settings ▸ Keyboard,"
     echo "    or run: gsettings set org.gnome.desktop.input-sources sources \"[('xkb', 'us'), ('ibus', 'hangul')]\""
+    echo "    and:    gsettings set org.freedesktop.ibus.engine.hangul use-event-forwarding false"
   fi
 }
 
