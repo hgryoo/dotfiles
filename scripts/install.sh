@@ -305,6 +305,23 @@ install_presentation_workspace() {
 }
 
 # ---------------------------------------------------------------------------
+# Keep every Claude account's skill set identical
+# There are three — cl (~/.claude), clc (~/.claude-cubrid), clt
+# (~/.cubrid-cubrid1) — and most installers write only to ~/.claude, so they
+# drift apart and a skill becomes uncallable from two of the three. Run last,
+# after every installer above has had its turn.
+# ---------------------------------------------------------------------------
+sync_claude_skills() {
+  local s="$SCRIPT_DIR/sync_claude_skills.sh"
+  if [ ! -f "$s" ]; then
+    echo ">>> sync_claude_skills.sh not found, skipping."
+    return
+  fi
+  echo ">>> Syncing skills across Claude accounts..."
+  bash "$s" || echo "WARNING: sync_claude_skills.sh reported an error (continuing)."
+}
+
+# ---------------------------------------------------------------------------
 # Claude Code + oh-my-claudecode
 # ---------------------------------------------------------------------------
 install_claude_code() {
@@ -1135,6 +1152,7 @@ main() {
   install_karpathy_skills
   install_scaffold_skills
   install_presentation_workspace
+  sync_claude_skills
   install_claude_code
   install_herdr
   install_code_review_graph

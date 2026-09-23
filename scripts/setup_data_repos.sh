@@ -235,6 +235,16 @@ if in_group hgryoo && [ -f "$DATA_ROOT/hgryoo/presentation-workspace/install.sh"
     || echo "!!! presentation-workspace install.sh reported an error — run it by hand." >&2
 fi
 
+if in_group hgryoo; then
+  # Every installer above writes to whichever account it knows about; this puts
+  # the three (cl / clc / clt) back in step so a skill is callable from all.
+  sync="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)/sync_claude_skills.sh"
+  if [ -f "$sync" ]; then
+    echo ">>> sync skills across Claude accounts"
+    bash "$sync" || echo "!!! sync_claude_skills.sh reported an error — run it by hand." >&2
+  fi
+fi
+
 # ---------------------------------------------------------------------------
 # /data/ops — one place to find the scripts that manage this tree
 # Symlinks only: every script stays owned by this repo, so editing through the
