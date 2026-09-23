@@ -117,7 +117,6 @@ See `ops/README.md` for the table and the fresh-machine order.
 | `dot_config/git/ignore` | `~/.config/git/ignore` |
 | `dot_config/gh/config.yml` | `~/.config/gh/config.yml` (no token — `gh auth login` writes `hosts.yml`) |
 | `dot_config/snip/config.toml` | `~/.config/snip/config.toml` |
-| `dot_config/abtop/config.toml` | `~/.config/abtop/config.toml` |
 | `dot_tmux.conf.local` | `~/.tmux.conf.local` |
 | `bin/` | `~/bin/` |
 
@@ -220,13 +219,6 @@ claude` once per account directory. That writes a `SessionStart` hook to
 `<account>/hooks/herdr-agent-state.sh` and registers it in that account's
 `settings.json` — additively, so hooks already there stay — which is what lets
 herdr restore Claude sessions across a restart.
-
-`abtop` rides along on the same runtime, with one difference: it takes a single
-workspace labelled `abtop` and focuses it instead of stacking tabs, the way
-`tmux new-session -A` used to attach rather than create. tmux tore that session
-down when abtop exited, so the next call started it again; herdr leaves the pane
-at a shell prompt, so the launcher restarts abtop when it finds that pane idle —
-and leaves it alone when something else is running there.
 
 `cl-tabs` / `clc-tabs` still work on whatever tmux sessions are left, but nothing
 in `dot_bash_aliases` starts a tmux session any more.

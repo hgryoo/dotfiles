@@ -636,21 +636,6 @@ install_lazygit() {
 }
 
 # ---------------------------------------------------------------------------
-# abtop (btop-like TUI for Claude Code / Codex CLI sessions)
-# https://github.com/graykode/abtop
-# ---------------------------------------------------------------------------
-install_abtop() {
-  if command -v abtop &>/dev/null; then
-    echo ">>> abtop already installed ($(abtop --version 2>/dev/null | head -n1)), skipping."
-    return
-  fi
-  echo ">>> Installing abtop..."
-  curl --proto '=https' --tlsv1.2 -LsSf \
-    https://github.com/graykode/abtop/releases/latest/download/abtop-installer.sh | sh
-  export PATH="$HOME/.local/bin:$PATH"
-}
-
-# ---------------------------------------------------------------------------
 # Code Review Graph (uv tool, binary install only)
 # https://github.com/tirth8205/code-review-graph
 # Per-project setup is intentional: run 'code-review-graph install --platform
@@ -1095,7 +1080,6 @@ print_summary() {
   command -v ant        &>/dev/null && echo "ant       : $(ant -version 2>/dev/null | head -n1)"          || echo "ant       : not found"
   command -v fc-match   &>/dev/null && echo "korean    : $(fc-match -s :lang=ko 2>/dev/null | head -n1 | cut -d: -f2- | cut -c1-40)" || echo "korean    : fontconfig not found"
   command -v cubrid-jira-fetch &>/dev/null && echo "jira-fetch: installed"                                || echo "jira-fetch: not found"
-  command -v abtop      &>/dev/null && echo "abtop     : $(abtop --version 2>/dev/null | head -n1)"       || echo "abtop     : not found"
   command -v claude &>/dev/null && echo "claude : $(claude --version | head -n1)" || echo "claude : not found"
   command -v herdr  &>/dev/null && echo "herdr  : $(herdr --version 2>/dev/null | head -n1)"       || echo "herdr  : not found"
   check_claude_accounts
@@ -1143,7 +1127,6 @@ main() {
   install_tailscale
   install_gh
   install_snip
-  install_abtop
   install_uv_tools
   install_bison_cubrid
   install_korean
