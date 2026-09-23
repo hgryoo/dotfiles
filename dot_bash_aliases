@@ -74,7 +74,9 @@ use-cubrid() {
 #   herdr — 워크스페이스 = (계정, 디렉터리), 그 안의 탭 = 개별 claude 세션.
 #           사이드바가 모든 워크스페이스의 agent 상태(working/blocked/idle)를 상시로
 #           굴려 보여주므로, cl-tabs / clc-tabs 가 뒤늦게 하던 일이 기본으로 붙는다.
-#           detach 는 prefix+q (ctrl+b 는 tmux 와 같다), 복귀는 `herdr`.
+#           prefix 는 tmux 와 같은 ctrl+a. detach 는 prefix+d / prefix+q, 복귀는 `herdr`.
+#           herdr 안에서는 새 탭(prefix+c)이나 분할(prefix+| / prefix+-)에서 cl 을 치면
+#           그 pane 에서 바로 뜬다 — herdr 화면이 다시 올라오는 건 밖에서 칠 때뿐이다.
 #
 # claude-main / claude-cubrid 는 herdr 없이 직접 실행하는 탈출구(raw)로 남겨둔다.
 alias claude-main='CLAUDE_CONFIG_DIR=$HOME/.claude command claude'
