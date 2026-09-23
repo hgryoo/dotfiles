@@ -81,6 +81,7 @@ MANIFEST=(
   "hgryoo|hgryoo/knowledge-docs-site|main|https://github.com/hgryoo/knowledge-docs-site.git|"
   "hgryoo|hgryoo/knowledge-slides|main|https://github.com/hgryoo/knowledge-slides.git|"
   "hgryoo|hgryoo/knowledge-slides-site|main|https://github.com/hgryoo/knowledge-slides-site.git|"
+  "hgryoo|hgryoo/presentation-workspace|main|https://github.com/hgryoo/presentation-workspace.git|"
   "hgryoo|hgryoo/scaffold|main|https://github.com/hgryoo/scaffold.git|"
 
   # --- upstream source mirrors (read-only reference reading) ---
@@ -223,6 +224,15 @@ if in_group hgryoo && [ -f "$DATA_ROOT/hgryoo/scaffold/install.sh" ]; then
   echo ">>> install scaffold skills + tools (-> ~/.claude/skills, ~/.local/bin)"
   bash "$DATA_ROOT/hgryoo/scaffold/install.sh" \
     || echo "!!! scaffold install.sh reported an error — run it by hand." >&2
+fi
+
+if in_group hgryoo && [ -f "$DATA_ROOT/hgryoo/presentation-workspace/install.sh" ]; then
+  # Same post-clone wiring for the presentation-workspace skill. It ships its own
+  # install.sh (symlinks skills/* into ~/.claude/skills and $CLAUDE_CONFIG_DIR),
+  # so it stays a separate repo rather than another entry in the scaffold.
+  echo ">>> install presentation-workspace skill (-> ~/.claude/skills)"
+  bash "$DATA_ROOT/hgryoo/presentation-workspace/install.sh" \
+    || echo "!!! presentation-workspace install.sh reported an error — run it by hand." >&2
 fi
 
 # ---------------------------------------------------------------------------

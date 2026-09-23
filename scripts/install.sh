@@ -278,6 +278,33 @@ install_scaffold_skills() {
 }
 
 # ---------------------------------------------------------------------------
+# presentation-workspace skill → ~/.claude/skills/
+# The talk-authoring system (doc-presentation-workspace) lives in its own repo
+# rather than in the scaffold: it carries slide templates, a tone spec and a
+# notes-panel server, so it versions on its own cadence. Its install.sh symlinks
+# skills/* into ~/.claude/skills and $CLAUDE_CONFIG_DIR — idempotent.
+# ---------------------------------------------------------------------------
+install_presentation_workspace() {
+  local candidates=(
+    "${DATA_ROOT:-/data}/hgryoo/presentation-workspace"
+    "/data/hgryoo/presentation-workspace"
+    "$HOME/presentation-workspace"
+  )
+  local repo=""
+  local c
+  for c in "${candidates[@]}"; do
+    if [ -f "$c/install.sh" ]; then repo="$c"; break; fi
+  done
+  if [ -z "$repo" ]; then
+    echo ">>> hgryoo/presentation-workspace not found (looked in: ${candidates[*]})."
+    echo ">>> Skipped — clone it with 'bash bootstrap.sh --data', then re-run install.sh."
+    return
+  fi
+  echo ">>> Installing presentation-workspace skill from $repo ..."
+  bash "$repo/install.sh" || echo "WARNING: presentation-workspace install.sh reported an error (continuing)."
+}
+
+# ---------------------------------------------------------------------------
 # Claude Code + oh-my-claudecode
 # ---------------------------------------------------------------------------
 install_claude_code() {
@@ -1124,6 +1151,7 @@ main() {
   install_claude_settings
   install_karpathy_skills
   install_scaffold_skills
+  install_presentation_workspace
   install_claude_code
   install_herdr
   install_code_review_graph
