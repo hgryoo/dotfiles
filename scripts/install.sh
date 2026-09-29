@@ -215,14 +215,15 @@ except Exception as exc:
 }
 
 # ---------------------------------------------------------------------------
-# Karpathy skills → ~/.claude/CLAUDE.md
-# Source: dot_claude/karpathy-skills.md (deployed by chezmoi to ~/.claude/)
+# Karpathy skills → ~/.claude-cubrid/CLAUDE.md
+# Source: dot_claude/karpathy-skills.md. On the team-shared branch the user-level
+# CLAUDE.md lives in the one environment there is, not in ~/.claude.
 # ---------------------------------------------------------------------------
 install_karpathy_skills() {
   local repo_root
   repo_root="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
   local src="$repo_root/dot_claude/karpathy-skills.md"
-  local dst="$HOME/.claude/CLAUDE.md"
+  local dst="$HOME/.claude-cubrid/CLAUDE.md"
   local marker="# Andrej Karpathy Skills"
 
   if grep -qF "$marker" "$dst" 2>/dev/null; then
@@ -235,7 +236,7 @@ install_karpathy_skills() {
     return
   fi
 
-  mkdir -p "$HOME/.claude"
+  mkdir -p "$(dirname "$dst")"
   echo "" >> "$dst"
   cat "$src" >> "$dst"
   echo ">>> Karpathy skills appended to $dst."
