@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+#
+# cpu-boost - CPU 부스트를 켜고 끈다.
+#
+# 부스트가 켜져 있으면 클럭이 온도와 바쁜 코어 수에 따라 바뀌어,
+# 주간 성능 테스트 결과를 주 단위로 비교하기 어렵다.
+# 성능 테스트 동안만 끄고, 끝나면 다시 켠다. 재부팅하면 다시 켜진다.
+#
+# Usage:
+#   cpu-boost [status|on|off]
+#
+#   status   현재 상태와 클럭 (기본)
+#   on       부스트 켜기 (sudo)
+#   off      부스트 끄기 (sudo)
+#   -h, --help 도움말
+#
+# 예시:
+#   cpu-boost off && ./run-perf.sh; cpu-boost on
+
+set -euo pipefail
+
+BOOST=/sys/devices/system/cpu/cpufreq/boost
+
+usage() {
+  awk 'NR==1{next} /^#/{sub(/^# ?/,""); print; next} {exit}' "$0"
+  exit "${1:-0}"
+}
+
+status() {
+  local state max cur
+  [[ $(cat "$BOOST") == 1 ]] && state=on || state=off
+  max=$(( $(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq) / 1000 ))
+  cur=$(awk '{s+=$1; n++} END {printf "%d", s/n/1000}' /sys/devices/system/cpu/cpu*/cpufreq/scaling_cur_freq)
+  echo "boost: $state  (최대 ${max} MHz, 현재 평균 ${cur} MHz)"
+}
+
+set_boost() {
+  echo "$1" | sudo tee "$BOOST" >/dev/null
+}
+
+[[ -e $BOOST ]] || { echo "오류: $BOOST 가 없습니다. 이 CPU 드라이버는 부스트 제어를 지원하지 않습니다." >&2; exit 1; }
+
+case "${1:-status}" in
+  status)    status ;;
+  on)        set_boost 1; status ;;
+  off)       set_boost 0; status ;;
+  -h|--help) usage 0 ;;
+  *)         echo "오류: 알 수 없는 인자 $1" >&2; usage 2 ;;
+esac

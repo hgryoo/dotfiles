@@ -78,6 +78,7 @@ bash bootstrap.sh --install-only --kb --local-llm # base + kb + llm
 | `scripts/workspace_rearrange.sh` | Tier `/data/workspace` by what a directory holds (`repos/ wt/ build/ runs/ harness/ topic/ archive/`) |
 | `scripts/workspace_reclaim.sh` | Delete what a named command remakes — build trees, install prefixes |
 | `scripts/sync_knowledge.sh` | rsync `~/obsidian/ ↔ ~/knowledge/` (`pull`/`push`) |
+| `scripts/setup_test_host.sh` | CUBRID test host: tuned profile `cubrid-test`, core files to `/data/cores`, open files 65536, no background jobs on Sat/Sun |
 
 `workspace/` holds what those three read and write: `manifest.txt` (51
 worktrees · 17 clones · 400 directories), plus `CLAUDE.md` and `README.md`,
@@ -143,6 +144,7 @@ stripped on deploy, so `bin/executable_connect-vpn.sh` lands as
 | `data-usage` | Per-directory disk usage for a path, largest first |
 | `disk-reclaim.sh` | Reclaim space losslessly: shrink ext4 reserved blocks, drop regenerable caches |
 | `oom-fix.sh` | Post-OOM hardening: earlyoom, systemd-oomd, swappiness, swap resize |
+| `cpu-boost` | CPU boost `on` / `off` / `status` — off during a weekly performance run |
 | `connect-vpn.sh` | CUBRID openfortivpn — credentials from `~/.secrets.env` |
 | `connect-aws.sh` | cubvec EC2 SSH — host from `~/.secrets.env`, key file copied by hand |
 | `connect-perf.sh` | Perf server SSH — host/password from `~/.secrets.env` |
