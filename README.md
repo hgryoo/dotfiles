@@ -156,19 +156,17 @@ stripped on deploy, so `bin/executable_connect-vpn.sh` lands as
 
 ## Claude launchers, and the runtime under them
 
-`cl` / `clc` / `clt` (and `vcl` / `vclc` / `vclt`) live in `dot_bash_aliases`.
-They pick an account and start Claude Code inside [herdr](https://herdr.dev),
-the terminal workspace manager that replaced tmux here on 2026-09-22.
+This is the `team-shared` branch, for the team's shared machine. It keeps a
+single Claude environment, `~/.cubrid-cubrid1`, and no personal accounts.
+`dot_bash_aliases` exports `CLAUDE_CONFIG_DIR` for it, and `clh` / `vclh` start
+Claude Code inside [herdr](https://herdr.dev), the terminal workspace manager
+that replaced tmux here on 2026-09-22.
 
-| Command | Account | `CLAUDE_CONFIG_DIR` |
+| Command | What it runs | `CLAUDE_CONFIG_DIR` |
 |---|---|---|
-| `cl` | personal | `~/.claude` |
-| `clc` | cubrid (work) | `~/.claude-cubrid` |
-| `clt` | test | `~/.cubrid-cubrid1` |
-| `vcl` / `vclc` / `vclt` | the same three, with `nvim .` beside Claude | as above |
-| `cl --incognito` | throwaway, seeded only from the personal login | `~/.claude-incognito/<pid>-<ts>` |
-| `clm` | an isolated extra session on one account, in place | `~/.claude-sessions/<pid>-<ts>` |
-| `claude-main` / `claude-cubrid` | raw escape hatch, no herdr | `~/.claude` / `~/.claude-cubrid` |
+| `claude` | the binary, in place, no wrapper and no default flags | `~/.cubrid-cubrid1` |
+| `clh` | Claude in a herdr pane, `--dangerously-skip-permissions --effort xhigh` | `~/.cubrid-cubrid1` |
+| `vclh` | the same, with `nvim .` beside Claude | `~/.cubrid-cubrid1` |
 
 ### Why herdr instead of tmux
 
@@ -179,10 +177,8 @@ sessions under a path into one tabbed session, after the fact.
 
 herdr's model fits the shape of the work better:
 
-- **workspace** = one `(account, directory)` pair, labelled `cl:<slug>`,
-  `clc:<slug>` or `clt:<slug>`. The tag carries what the `claude-` / `claudec-`
-  session-name prefix used to.
-- **tab** = one Claude session inside that workspace. Running `clc` twice in
+- **workspace** = one directory, labelled `clh:<slug>`.
+- **tab** = one Claude session inside that workspace. Running `clh` twice in
   the same directory reuses the workspace and adds a tab, rather than
   scattering two more sessions.
 - the sidebar marks every pane `working`, `blocked` or `idle` and rolls that up
@@ -200,19 +196,15 @@ dropping an SSH connection no longer stops an agent.
 1. `_herdr_up` starts the background server when the socket is not there.
    `workspace create` needs a server, and the server outlives every client.
 2. `workspace create` — or `tab create`, when a workspace with that label
-   already exists — opens a pane with `--env CLAUDE_CONFIG_DIR=<account>`. The
-   account comes from the pane's environment, not from the command line.
-3. `pane run` sends `command claude …` into that pane. `command` is what skips
-   the `claude` shell function below it.
+   already exists — opens a pane with `--env CLAUDE_CONFIG_DIR=~/.cubrid-cubrid1`.
+   The server is started with every `CLAUDE*` variable stripped, so the pane
+   gets the config dir from this flag rather than by inheritance.
+3. `pane run` sends `command claude …` into that pane.
 4. `herdr` attaches.
 
 Inside a herdr pane (`HERDR_ENV=1`), or off a TTY, every launcher runs Claude in
 place instead: herdr blocks nested launches by design, and a pane is already
 persistent.
-
-Because step 2 injects `CLAUDE_CONFIG_DIR`, the bare `claude` wrapper no longer
-asks which account to use when one is already set — it only prompts from a
-plain shell.
 
 `install.sh` installs the binary and then runs `herdr integration install
 claude` once per account directory. That writes a `SessionStart` hook to
@@ -294,16 +286,15 @@ CLAUDE_CONFIG_DIR=$HOME/.claude nvim
 already running in another herdr pane — run `/ide` there and it will find the
 editor, as long as both are on the same account.
 
-`vcl` / `vclc` / `vclt` (in `dot_bash_aliases`) start that layout in one step:
-the same account as `cl` / `clc` / `clt`, a herdr tab with `nvim .` on the left
-and Claude on the right 40%, both in the current directory, and already
-connected to each other. They read the port out of the lock file the editor
-just wrote and pass it as `CLAUDE_CODE_SSE_PORT`, rather than relying on
-`--ide` alone — `--ide` only auto-connects when exactly one editor is running,
-which stops being true the moment a second project is open. Arguments go to
-Claude, and the workspace label follows the same `cl:` / `clc:` / `clt:`
-convention as `cl` / `clc` / `clt`, so repeat runs in one directory stack up as
-tabs in a single workspace.
+`vclh` (in `dot_bash_aliases`) starts that layout in one step: the same
+environment as `clh`, a herdr tab with `nvim .` on the left and Claude on the
+right 40%, both in the current directory, and already connected to each other.
+It reads the port out of the lock file the editor just wrote and passes it as
+`CLAUDE_CODE_SSE_PORT`, rather than relying on `--ide` alone — `--ide` only
+auto-connects when exactly one editor is running, which stops being true the
+moment a second project is open. Arguments go to Claude, and the workspace
+label follows the same `clh:` convention as `clh`, so repeat runs in one
+directory stack up as tabs in a single workspace.
 
 ### clangd and compile_commands.json
 
