@@ -22,7 +22,8 @@
 #        off   dnf-makecache, plocate-updatedb, raid-check (no md RAID here),
 #              GNOME Software automatic update downloads
 #        moved fstrim → Wednesday 03:00, no catch-up at boot
-#   5. /data/cores and /data/history (the Claude change log).
+#   5. /data/cores, /data/history (the Claude change log) and /data/users
+#      (one folder per team member; everyone logs in as the shared account).
 #
 # Run it as the normal user, not with sudo; it calls sudo for the system parts.
 #
@@ -126,9 +127,9 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-say "5. /data/history"
+say "5. /data/history, /data/users"
 # ---------------------------------------------------------------------------
-sudo install -d -m 0755 -o "$ME" -g "$ME" /data/history
+sudo install -d -m 0755 -o "$ME" -g "$ME" /data/history /data/users
 
 # ---------------------------------------------------------------------------
 say "Result"
