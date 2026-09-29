@@ -157,16 +157,16 @@ stripped on deploy, so `bin/executable_connect-vpn.sh` lands as
 ## Claude launchers, and the runtime under them
 
 This is the `team-shared` branch, for the team's shared machine. It keeps a
-single Claude environment, `~/.cubrid-cubrid1`, and no personal accounts.
+single Claude environment, `~/.claude-cubrid`, and no personal accounts.
 `dot_bash_aliases` exports `CLAUDE_CONFIG_DIR` for it, and `clh` / `vclh` start
 Claude Code inside [herdr](https://herdr.dev), the terminal workspace manager
 that replaced tmux here on 2026-09-22.
 
 | Command | What it runs | `CLAUDE_CONFIG_DIR` |
 |---|---|---|
-| `claude` | the binary, in place, no wrapper and no default flags | `~/.cubrid-cubrid1` |
-| `clh` | Claude in a herdr pane, `--dangerously-skip-permissions --effort xhigh` | `~/.cubrid-cubrid1` |
-| `vclh` | the same, with `nvim .` beside Claude | `~/.cubrid-cubrid1` |
+| `claude` | the binary, in place, no wrapper and no default flags | `~/.claude-cubrid` |
+| `clh` | Claude in a herdr pane, `--dangerously-skip-permissions --effort xhigh` | `~/.claude-cubrid` |
+| `vclh` | the same, with `nvim .` beside Claude | `~/.claude-cubrid` |
 
 ### Why herdr instead of tmux
 
@@ -196,7 +196,7 @@ dropping an SSH connection no longer stops an agent.
 1. `_herdr_up` starts the background server when the socket is not there.
    `workspace create` needs a server, and the server outlives every client.
 2. `workspace create` — or `tab create`, when a workspace with that label
-   already exists — opens a pane with `--env CLAUDE_CONFIG_DIR=~/.cubrid-cubrid1`.
+   already exists — opens a pane with `--env CLAUDE_CONFIG_DIR=~/.claude-cubrid`.
    The server is started with every `CLAUDE*` variable stripped, so the pane
    gets the config dir from this flag rather than by inheritance.
 3. `pane run` sends `command claude …` into that pane.
@@ -207,10 +207,10 @@ place instead: herdr blocks nested launches by design, and a pane is already
 persistent.
 
 `install.sh` installs the binary and then runs `herdr integration install
-claude` once per account directory. That writes a `SessionStart` hook to
-`<account>/hooks/herdr-agent-state.sh` and registers it in that account's
-`settings.json` — additively, so hooks already there stay — which is what lets
-herdr restore Claude sessions across a restart.
+claude` for `~/.claude-cubrid`. That writes a `SessionStart` hook to
+`~/.claude-cubrid/hooks/herdr-agent-state.sh` and registers it in that
+directory's `settings.json` — additively, so hooks already there stay — which
+is what lets herdr restore Claude sessions across a restart.
 
 `cl-tabs` / `clc-tabs` still work on whatever tmux sessions are left, but nothing
 in `dot_bash_aliases` starts a tmux session any more.
@@ -269,18 +269,13 @@ work over ssh anyway.
 
 The official IDE extensions are VS Code and JetBrains only; `claudecode.nvim`
 implements the same WebSocket protocol. nvim writes a lock file to
-`$CLAUDE_CONFIG_DIR/ide/<port>.lock` and the CLI only scans its own account's
-directory — so the account the lock lands in decides which Claude sessions can
-see this editor.
+`$CLAUDE_CONFIG_DIR/ide/<port>.lock` and the CLI only scans its own config
+directory — so the directory the lock lands in decides which Claude sessions
+can see this editor.
 
-There are two accounts here (`cl` -> `~/.claude`, `clc` -> `~/.claude-cubrid`),
-so the config defaults `CLAUDE_CONFIG_DIR` to the cubrid one, which is what
-/data/cub_sys and /data/cubrid_cv work runs under. To attach the personal
-account instead, set it in the shell that starts the editor:
-
-```sh
-CLAUDE_CONFIG_DIR=$HOME/.claude nvim
-```
+There is one environment here, `~/.claude-cubrid`. The shell exports it, and
+the config defaults `CLAUDE_CONFIG_DIR` to it as well, for an nvim started
+without going through the shell.
 
 `<leader>ac` opens Claude in a split inside nvim. For the usual layout — Claude
 already running in another herdr pane — run `/ide` there and it will find the

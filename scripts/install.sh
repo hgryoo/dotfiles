@@ -135,12 +135,10 @@ install_base_rocky() {
 # this function plants the defaults on first install so plugins/marketplaces
 # are auto-wired, but preserves any local customizations — hooks, model, etc.)
 # ---------------------------------------------------------------------------
-# Accounts share everything but a handful of keys. `cl` runs against
-# ~/.claude and `clc` against ~/.claude-cubrid, and for a long time only the
-# first was seeded — the second was whatever had been set up by hand, which is
-# how one ended up on snip and the other still on rtk after snip replaced it.
-# Seed both from one base plus a per-account overlay, so a change to a hook or
-# a plugin lands in every account by construction.
+# On the team-shared branch there is one environment, ~/.claude-cubrid, the
+# one `claude`, `clh` and `vclh` run against (dot_bash_aliases). It is seeded
+# from the shared base plus the cubrid overlay; accounts/main.json is only used
+# on the personal branch.
 #
 #   dot_claude/settings.json        the shared base
 #   dot_claude/accounts/<n>.json    what differs: model, permissions, effort
@@ -149,7 +147,6 @@ install_base_rocky() {
 # records plugin state there), so an existing file is never overwritten
 # without being asked.
 CLAUDE_ACCOUNTS=(
-  "main|$HOME/.claude"
   "cubrid|$HOME/.claude-cubrid"
 )
 
@@ -346,9 +343,7 @@ install_claude_code() {
 # install_claude_settings has seeded those directories.
 # ---------------------------------------------------------------------------
 HERDR_CLAUDE_DIRS=(
-  "$HOME/.claude"
   "$HOME/.claude-cubrid"
-  "$HOME/.cubrid-cubrid1"
 )
 
 install_herdr() {
@@ -361,7 +356,7 @@ install_herdr() {
   fi
 
   if ! command -v herdr &>/dev/null; then
-    echo "!!! herdr not on PATH after install — cl / clc / clt cannot start." >&2
+    echo "!!! herdr not on PATH after install — clh / vclh cannot start." >&2
     return
   fi
 

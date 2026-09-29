@@ -4,17 +4,16 @@
 -- 같은 WebSocket 프로토콜을 구현한다. 실질적인 이득은 둘이다: 선택 영역을 그대로
 -- 넘기는 것과, Claude 가 만든 diff 를 에디터에서 수락/거절하는 것.
 --
--- 계정이 둘이다 (dot_bash_aliases): cl → ~/.claude, clc → ~/.claude-cubrid.
--- CLI 는 자기 $CLAUDE_CONFIG_DIR/ide/*.lock 만 훑으므로, nvim 이 락을 어느 계정
--- 디렉터리에 쓰는지가 곧 "어느 계정에서 이 nvim 이 보이는지"가 된다. 기본값은 회사
--- (cubrid) 계정 — /data/cub_sys 와 /data/cubrid_cv 작업이 nvim 사용의 대부분이다.
--- 개인 계정으로 붙이려면 그 셸에서 CLAUDE_CONFIG_DIR=$HOME/.claude nvim 으로 띄운다.
+-- 팀 공용 머신이라 Claude 환경은 하나다 (dot_bash_aliases): ~/.claude-cubrid.
+-- CLI 는 자기 $CLAUDE_CONFIG_DIR/ide/*.lock 만 훑으므로, nvim 도 락을 같은
+-- 디렉터리에 써야 옆 pane 의 claude 가 이 nvim 을 찾는다. 셸은 CLAUDE_CONFIG_DIR 을
+-- export 하지만, 셸을 거치지 않고 뜬 nvim 을 위해 여기서도 기본값을 둔다.
 
 return {
   {
     "coder/claudecode.nvim",
     dependencies = { "folke/snacks.nvim" },
-    -- 지연 로딩하지 않는다: 락 파일이 미리 있어야 옆 tmux pane 의 clc 가 /ide 로 찾는다.
+    -- 지연 로딩하지 않는다: 락 파일이 미리 있어야 옆 herdr pane 의 clh 가 /ide 로 찾는다.
     event = "VeryLazy",
     init = function()
       -- 서버가 올라가기 전에 정해져야 한다. 셸에서 이미 정해 왔으면 그쪽을 존중한다.
@@ -23,9 +22,9 @@ return {
       end
     end,
     opts = {
-      -- `claude` 는 대화형 셸에서 계정을 묻는 함수라(dot_bash_aliases) 터미널에서 부르면
-      -- 프롬프트가 뜬다. 바이너리를 직접 부르고, 플래그는 clc 와 같게 맞춘다.
-      terminal_cmd = vim.fn.expand("~/.local/bin/claude") .. " --dangerously-skip-permissions --effort xhigh",
+      -- `claude` 는 셸 함수 없이 바이너리 그대로다(설치 위치는 머신마다 다르다 —
+      -- 여기선 npm 전역 /usr/local/bin). PATH 에서 찾고, 플래그는 clh 와 같게 맞춘다.
+      terminal_cmd = "claude --dangerously-skip-permissions --effort xhigh",
     },
     keys = {
       { "<leader>ac", "<cmd>ClaudeCode<cr>", desc = "Claude 터미널 토글" },

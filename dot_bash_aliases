@@ -65,11 +65,11 @@ use-cubrid() {
 }
 
 # --- Claude Code (added 2026-06-01, 런타임 tmux → herdr 2026-09-22, 팀 공용 단일 환경 2026-09-29) ---
-# 이 머신은 팀 공용이다. Claude 환경은 하나만 둔다: ~/.cubrid-cubrid1
+# 이 머신은 팀 공용이다. Claude 환경은 하나만 둔다: ~/.claude-cubrid
 #   claude → 그 환경으로 바로 실행 (래퍼 없음, 기본 플래그 없음)
 #   clh    → 같은 환경을 herdr pane 안에서 실행
 #   vclh   → clh 와 같되, nvim(왼쪽) + claude(오른쪽) 를 한 탭에 띄운다
-export CLAUDE_CONFIG_DIR="$HOME/.cubrid-cubrid1"
+export CLAUDE_CONFIG_DIR="$HOME/.claude-cubrid"
 
 # 런타임은 herdr(https://herdr.dev) 다.
 #   워크스페이스 = 디렉터리, 그 안의 탭 = 개별 claude 세션.
@@ -169,7 +169,7 @@ _claude_run() {
   herdr
 }
 
-clh() { _claude_run "$HOME/.cubrid-cubrid1" --dangerously-skip-permissions --effort xhigh "$@"; }
+clh() { _claude_run "$HOME/.claude-cubrid" --dangerously-skip-permissions --effort xhigh "$@"; }
 
 # --- nvim + Claude 를 한 화면에 (added 2026-09-21) ---
 # vclh : clh 와 같은 환경으로, 현재 경로에서 nvim(왼쪽)과 claude(오른쪽)를
@@ -221,4 +221,4 @@ _claude_nvim_run() {
   [ "${HERDR_ENV:-}" = 1 ] || herdr
 }
 
-vclh() { _claude_nvim_run "$HOME/.cubrid-cubrid1" --dangerously-skip-permissions --effort xhigh "$@"; }
+vclh() { _claude_nvim_run "$HOME/.claude-cubrid" --dangerously-skip-permissions --effort xhigh "$@"; }
