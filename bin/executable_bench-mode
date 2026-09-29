@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+#
+# bench-mode - 성능 테스트용 설정을 한 번에 켜고 끈다.
+#
+# 테스트 전에 켜고 끝나면 끄는 설정을 여기에 모은다. 새 설정이 생기면
+# on() / off() / status() 에 추가한다. 항상 적용되는 설정(tuned cubrid-test,
+# 코어 파일, 타이머)은 ~/dotfiles/scripts/setup_test_host.sh 에 있다.
+#
+#   on    CPU 부스트 끔 (cpu-boost off)
+#   off   CPU 부스트 켬 (cpu-boost on)
+#
+# 켜져 있는 동안 /run/bench-mode 에 켠 시각과 사용자가 남는다.
+# 재부팅하면 꺼진다.
+#
+# Usage:
+#   bench-mode [status|on|off]
+#
+#   status   켜짐/꺼짐과 테스트 관련 설정 (기본). 결과의 manifest 에 붙인다.
+#   on       켜기 (sudo)
+#   off      끄기 (sudo)
+#   -h, --help 도움말
+#
+# 예시:
+#   bench-mode on && ./run-weekly-perf.sh; bench-mode off
+#   bench-mode status >> /data/results/perf/20261003_cubrid-11.4-a1b2c3d/manifest
+
+set -euo pipefail
+
+STATE=/run/bench-mode
+BIN="$(dirname "$(readlink -f "$0")")"
+
+usage() {
+  awk 'NR==1{next} /^#/{sub(/^# ?/,""); print; next} {exit}' "$0"
+  exit "${1:-0}"
+}
+
+status() {
+  local nvme bg lim
+  if [[ -e $STATE ]]; then echo "bench-mode: on ($(cat "$STATE"))"; else echo "bench-mode: off"; fi
+  # sudo 가 캐시되어 있을 때만 (on/off 직후) 온도를 읽는다.
+  nvme=$(sudo -n smartctl -A /dev/nvme0n1 2>/dev/null | awk '/^Temperature:/ {print $2 " C"}') || true
+  # bytes 가 0 이면 ratio(%) 로 설정된 것이다.
+  bg=$(sysctl -n vm.dirty_background_bytes); [[ $bg == 0 ]] && bg="$(sysctl -n vm.dirty_background_ratio)%"
+  lim=$(sysctl -n vm.dirty_bytes);           [[ $lim == 0 ]] && lim="$(sysctl -n vm.dirty_ratio)%"
+  printf '%-10s %s\n' \
+    kernel   "$(uname -r)" \
+    tuned    "$(tuned-adm active 2>/dev/null | sed 's/.*: //')" \
+    governor "$(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor)" \
+    boost    "$("$BIN/cpu-boost" status | sed 's/^boost: //')" \
+    THP      "$(sed 's/.*\[\(.*\)\].*/\1/' /sys/kernel/mm/transparent_hugepage/enabled)" \
+    dirty    "background=$bg limit=$lim" \
+    nvme     "${nvme:-n/a (sudo 필요)}" \
+    /data    "$(df -h --output=avail /data | tail -1 | tr -d ' ') free"
+}
+
+on() {
+  "$BIN/cpu-boost" off >/dev/null
+  echo "$(date '+%F %T') by $(id -un)${SSH_CLIENT:+ from ${SSH_CLIENT%% *}}" | sudo tee "$STATE" >/dev/null
+  status
+}
+
+off() {
+  "$BIN/cpu-boost" on >/dev/null
+  sudo rm -f "$STATE"
+  status
+}
+
+case "${1:-status}" in
+  status)    status ;;
+  on)        on ;;
+  off)       off ;;
+  -h|--help) usage 0 ;;
+  *)         echo "오류: 알 수 없는 인자 $1" >&2; usage 2 ;;
+esac

@@ -145,6 +145,7 @@ stripped on deploy, so `bin/executable_connect-vpn.sh` lands as
 | `disk-reclaim.sh` | Reclaim space losslessly: shrink ext4 reserved blocks, drop regenerable caches |
 | `oom-fix.sh` | Post-OOM hardening: earlyoom, systemd-oomd, swappiness, swap resize |
 | `cpu-boost` | CPU boost `on` / `off` / `status` — off during a weekly performance run |
+| `bench-mode` | One switch for every per-run test setting (now: CPU boost); `status` prints the lines for a result manifest |
 | `connect-vpn.sh` | CUBRID openfortivpn — credentials from `~/.secrets.env` |
 | `connect-aws.sh` | cubvec EC2 SSH — host from `~/.secrets.env`, key file copied by hand |
 | `connect-perf.sh` | Perf server SSH — host/password from `~/.secrets.env` |

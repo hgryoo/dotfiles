@@ -11,7 +11,7 @@
 #        dirty pages writeback starts at 256 MB, writers block at 2 GB
 #                    (was 10% / 40% of RAM = about 6 GB / 23 GB)
 #        autogroup   off — CPU time is shared per thread, not per terminal session
-#        CPU boost   stays on; turn it off for a run with ~/bin/cpu-boost off
+#        CPU boost   stays on; turn it off for a run with ~/bin/bench-mode on
 #      GNOME's "Performance" power mode (tuned-ppd) is mapped to it too.
 #   2. sysctl: core files go to /data/cores/core.<exe>.<pid>.<time>
 #      (systemd-coredump drops cores larger than 1 GB — a cub_server with a large
