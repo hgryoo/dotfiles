@@ -42,13 +42,17 @@ peer_table() {  # name<TAB>ip<TAB>os<TAB>online<TAB>self
   printf '%s' "$PEERS" | python3 -c '
 import json, sys
 d = json.load(sys.stdin)
+# The machine name from the admin console, i.e. the MagicDNS label. HostName is
+# the OS hostname the node reports, and does not follow a rename in the console.
+def name(p):
+    return (p.get("DNSName") or "").split(".")[0] or p.get("HostName", "?")
 def row(p, is_self):
     ips = p.get("TailscaleIPs") or [""]
-    print("\t".join([p.get("HostName", "?"), ips[0], p.get("OS", "?"),
+    print("\t".join([name(p), ips[0], p.get("OS", "?"),
                      "1" if (is_self or p.get("Online")) else "0",
                      "1" if is_self else "0"]))
 row(d.get("Self", {}), True)
-for p in sorted(d.get("Peer", {}).values(), key=lambda x: x.get("HostName", "")):
+for p in sorted(d.get("Peer", {}).values(), key=name):
     row(p, False)
 '
 }
@@ -70,8 +74,8 @@ QUERY="$1"; shift
 
 # Fragment match, case-insensitive. An exact name wins over a fragment, so
 # `connect-ts tsx-n1` is not ambiguous just because tsx-n2 exists.
-# -F'\t' matters: a machine name can contain spaces, and the default field
-# split turned "형규의 S24 Ultra" into three fields, so nothing matched it.
+# -F'\t' matters: the HostName fallback can contain spaces, and the default
+# field split turned "형규의 S24 Ultra" into three fields, so nothing matched it.
 MATCHES=$(peer_table | awk -F'\t' -v q="${QUERY,,}" '
   { name = tolower($1) }
   name == q { exact = $0 }
