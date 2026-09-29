@@ -740,12 +740,18 @@ install_tmux() {
 # Alacritty (GPU-accelerated terminal emulator)
 # Config is deployed by chezmoi to ~/.config/alacritty/alacritty.toml
 #
-# Built with cargo on both distros. Ubuntu's apt package is 0.13.x, and
-# Alacritty before 0.15.0 mishandles the kitty keyboard protocol (herdr's
-# troubleshooting page names 0.15.0 as the fixed version). Claude Code turns
-# that protocol on inside herdr, and with ibus-hangul the space after a Hangul
-# word then lands one syllable early: "확실히 낫다" -> "확실 히낫다".
-# gnome-terminal attached to the same herdr pane typed it correctly.
+# Built with cargo on both distros. Ubuntu's apt package is 0.13.x, and herdr's
+# troubleshooting page names 0.15.0 as the first Alacritty whose kitty keyboard
+# reporting stops sending Enter, Tab and Backspace twice.
+#
+# Korean input on X11 stays unreliable even at 0.17.0. Alacritty takes IME
+# input over XIM and now and then writes the space that ends a Hangul word
+# before that word's last syllable ("확실히 낫다" -> "확실 히낫다"), with
+# ibus-hangul and fcitx5-hangul alike. A byte probe run straight in Alacritty,
+# without herdr, caught it in that order, so herdr and Claude Code only pass
+# it on. gnome-terminal, which takes IME input through GTK rather than XIM,
+# types it correctly, so Korean-heavy work belongs there.
+#
 # The apt copy is removed so only one alacritty exists. cargo installs no
 # desktop entry, so upstream's is copied from the crate source under the file
 # ID the apt package used (Alacritty.desktop), which keeps a dock pin working.
@@ -1091,15 +1097,9 @@ XML
     gsettings set org.gnome.desktop.input-sources sources \
       "[('xkb', 'us'), ('ibus', 'hangul')]" 2>/dev/null \
       && echo ">>> Input sources set to us + hangul."
-    # With event forwarding on (the schema default), Alacritty's XIM input
-    # sometimes lost the space that ends a Hangul syllable: "게 이렇게" came
-    # out "게이렇게" even in plain `cat`. Turning it off fixed that.
-    gsettings set org.freedesktop.ibus.engine.hangul use-event-forwarding false 2>/dev/null \
-      && echo ">>> ibus-hangul event forwarding off."
   else
     echo ">>> No desktop session here — add Korean (Hangul) in Settings ▸ Keyboard,"
     echo "    or run: gsettings set org.gnome.desktop.input-sources sources \"[('xkb', 'us'), ('ibus', 'hangul')]\""
-    echo "    and:    gsettings set org.freedesktop.ibus.engine.hangul use-event-forwarding false"
   fi
 }
 
