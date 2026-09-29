@@ -65,11 +65,14 @@ use-cubrid() {
 }
 
 # --- Claude Code (added 2026-06-01, 런타임 tmux → herdr 2026-09-22, 팀 공용 단일 환경 2026-09-29) ---
-# 이 머신은 팀 공용이다. Claude 환경은 하나만 둔다: ~/.claude-cubrid
-#   claude → 그 환경으로 바로 실행 (래퍼 없음, 기본 플래그 없음)
-#   clh    → 같은 환경을 herdr pane 안에서 실행
+# 이 머신은 팀 공용이다. Claude 환경은 하나만 둔다: Claude 기본값인 ~/.claude (+ ~/.claude.json).
+#   claude → 바로 실행 (래퍼 없음, 기본 플래그 없음)
+#   clh    → herdr pane 안에서 실행
 #   vclh   → clh 와 같되, nvim(왼쪽) + claude(오른쪽) 를 한 탭에 띄운다
-export CLAUDE_CONFIG_DIR="$HOME/.claude-cubrid"
+#
+# CLAUDE_CONFIG_DIR 은 일부러 두지 않는다. 설정돼 있으면 Claude 는 .claude.json 을 그
+# 디렉터리 안에서 찾고, 없으면 ~/.claude.json 을 쓴다. ~/.claude 를 명시적으로 export 하면
+# 셸을 거치지 않고 뜬 Claude(VS Code 확장 등)와 상태가 두 벌로 갈라진다.
 
 # 런타임은 herdr(https://herdr.dev) 다.
 #   워크스페이스 = 디렉터리, 그 안의 탭 = 개별 claude 세션.
@@ -102,8 +105,8 @@ _herdr_up() {
   # 서버는 오래 살고, 이 서버가 띄우는 모든 pane 이 그 환경을 물려받는다.
   # Claude Code 세션 안에서 clh 를 부르면(에이전트가 에이전트를 띄우는 자리) 부모의
   # CLAUDE_CODE_* 표식까지 통째로 상속돼, 새 pane 의 claude 가 스스로를 자식 세션으로
-  # 알고 트랜스크립트 저장을 꺼 버린다. CLAUDE_CONFIG_DIR 은 pane 마다 --env 로
-  # 따로 넣으므로, 서버만큼은 CLAUDE* 를 모두 턴 환경에서 띄운다.
+  # 알고 트랜스크립트 저장을 꺼 버린다. CLAUDE_CONFIG_DIR 이 어딘가에서 들어와 있어도
+  # pane 이 기본 환경(~/.claude)을 벗어나면 안 된다 → 서버는 CLAUDE* 를 모두 턴 환경에서 띄운다.
   local -a strip=() ; local v
   while IFS='=' read -r v _; do
     case "$v" in CLAUDECODE|CLAUDE_*) strip+=( -u "$v" ) ;; esac
@@ -134,7 +137,7 @@ _herdr_ws_id() {
 # 같은 자리가 이미 있으면 워크스페이스를 재사용하고 탭만 하나 더 연다.
 # 탭 이름은 herdr 기본값(1, 2, 3…)에 맡긴다 — 어느 경로인지는 이미 워크스페이스
 # 라벨이 들고 있고, 탭은 그 안에서 몇 번째 세션이냐만 구분하면 된다.
-# 인자로 받은 --env 들은 그 pane 의 프로세스 환경으로 들어간다.
+# 나머지 인자(--env 등)는 herdr 로 그대로 넘어간다.
 _herdr_claude_pane() {
   local label="$1"; shift
   local ws
@@ -149,56 +152,55 @@ _herdr_claude_pane() {
 }
 
 # 공통: Claude Code 를 herdr pane 안에서 실행하는 래퍼.
-#   _claude_run <config_dir> [claude 인자...]
+#   _claude_run [claude 인자...]
 # - 이미 herdr pane 안($HERDR_ENV)이거나 stdout 이 TTY 가 아니면(파이프/비대화형) in-place 실행.
 # - 아니면 경로별 워크스페이스에 pane 을 하나 열어 거기서 띄우고 attach 한다.
 _claude_run() {
-  local config_dir="$1"; shift
   if [ "${HERDR_ENV:-}" = 1 ] || [ ! -t 1 ]; then
-    CLAUDE_CONFIG_DIR="$config_dir" command claude "$@"
+    command claude "$@"
     return $?
   fi
 
   _herdr_up || return 1
 
   local pane
-  pane=$(_herdr_claude_pane "clh:$(_claude_dir_slug)" --env "CLAUDE_CONFIG_DIR=$config_dir")
+  pane=$(_herdr_claude_pane "clh:$(_claude_dir_slug)")
   [ -n "$pane" ] || { echo "herdr: pane 을 만들지 못했습니다" >&2; return 1; }
 
   herdr pane run "$pane" "command claude $(_herdr_qargs "$@")" >/dev/null
   herdr
 }
 
-clh() { _claude_run "$HOME/.claude-cubrid" --dangerously-skip-permissions --effort xhigh "$@"; }
+clh() { _claude_run --dangerously-skip-permissions --effort xhigh "$@"; }
 
 # --- nvim + Claude 를 한 화면에 (added 2026-09-21) ---
-# vclh : clh 와 같은 환경으로, 현재 경로에서 nvim(왼쪽)과 claude(오른쪽)를
+# vclh : clh 와 같이, 현재 경로에서 nvim(왼쪽)과 claude(오른쪽)를
 # 한 탭의 두 pane 으로 띄운다. 인자는 claude 로 넘어간다.
 #
-# 핵심은 두 pane 이 서로 붙는다는 것이다. claudecode.nvim 은
-# $CLAUDE_CONFIG_DIR/ide/<port>.lock 에 락을 쓰므로, nvim pane 에도 같은 환경을 주고
-# 새로 생긴 락에서 포트를 읽어 claude pane 에 CLAUDE_CODE_SSE_PORT 로 넘긴다.
+# 핵심은 두 pane 이 서로 붙는다는 것이다. claudecode.nvim 은 ~/.claude/ide/<port>.lock 에
+# 락을 쓰므로(CLAUDE_CONFIG_DIR 이 없을 때의 기본값), 새로 생긴 락에서 포트를 읽어
+# claude pane 에 CLAUDE_CODE_SSE_PORT 로 넘긴다.
 # --ide 만 쓰면 "정확히 하나"일 때만 자동 연결이라, 에디터를 여러 개 띄워 두면 실패한다.
 #
 # 라벨은 _claude_run 과 같은 규칙(clh:)이라 같은 경로의 워크스페이스에 탭으로 모인다.
 _claude_nvim_run() {
-  local config_dir="$1"; shift
+  local ide_dir="$HOME/.claude/ide"
   _herdr_up || return 1
 
   # 이 nvim 이 새로 만드는 락만 골라내기 위해 먼저 스냅샷.
   local before=" " f
-  for f in "$config_dir"/ide/*.lock; do [ -e "$f" ] && before="$before$f "; done
+  for f in "$ide_dir"/*.lock; do [ -e "$f" ] && before="$before$f "; done
 
   # 왼쪽 pane = nvim. `nvim .` 이라 oil 이 그 디렉터리를 바로 보여준다.
   local left
-  left=$(_herdr_claude_pane "clh:$(_claude_dir_slug)" --env "CLAUDE_CONFIG_DIR=$config_dir")
+  left=$(_herdr_claude_pane "clh:$(_claude_dir_slug)")
   [ -n "$left" ] || { echo "herdr: nvim pane 을 만들지 못했습니다" >&2; return 1; }
   herdr pane run "$left" 'nvim .' >/dev/null
 
   # 락이 뜨기를 최대 10초 기다린다. 못 찾으면 포트 없이(=--ide 에 맡기고) 진행.
   local port="" i
   for i in $(seq 1 40); do
-    for f in "$config_dir"/ide/*.lock; do
+    for f in "$ide_dir"/*.lock; do
       [ -e "$f" ] || continue
       case "$before" in *" $f "*) continue ;; esac
       port=$(basename -- "$f" .lock); break
@@ -208,7 +210,7 @@ _claude_nvim_run() {
   done
 
   # 오른쪽 40% = claude. herdr 의 --ratio 는 '쪼개진 원래 pane' 의 몫이라 0.6 이 왼쪽 60%.
-  local -a envs=( --env "CLAUDE_CONFIG_DIR=$config_dir" --env ENABLE_IDE_INTEGRATION=true )
+  local -a envs=( --env ENABLE_IDE_INTEGRATION=true )
   [ -n "$port" ] && envs+=( --env "CLAUDE_CODE_SSE_PORT=$port" )
 
   local right
@@ -221,4 +223,4 @@ _claude_nvim_run() {
   [ "${HERDR_ENV:-}" = 1 ] || herdr
 }
 
-vclh() { _claude_nvim_run "$HOME/.claude-cubrid" --dangerously-skip-permissions --effort xhigh "$@"; }
+vclh() { _claude_nvim_run --dangerously-skip-permissions --effort xhigh "$@"; }

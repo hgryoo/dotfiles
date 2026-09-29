@@ -135,10 +135,10 @@ install_base_rocky() {
 # this function plants the defaults on first install so plugins/marketplaces
 # are auto-wired, but preserves any local customizations — hooks, model, etc.)
 # ---------------------------------------------------------------------------
-# On the team-shared branch there is one environment, ~/.claude-cubrid, the
-# one `claude`, `clh` and `vclh` run against (dot_bash_aliases). It is seeded
-# from the shared base plus the cubrid overlay; accounts/main.json is only used
-# on the personal branch.
+# On the team-shared branch there is one environment, Claude's default
+# ~/.claude, the one `claude`, `clh` and `vclh` run against (dot_bash_aliases).
+# It is seeded from the shared base plus the cubrid overlay; accounts/main.json
+# is only used on the personal branch.
 #
 #   dot_claude/settings.json        the shared base
 #   dot_claude/accounts/<n>.json    what differs: model, permissions, effort
@@ -147,7 +147,7 @@ install_base_rocky() {
 # records plugin state there), so an existing file is never overwritten
 # without being asked.
 CLAUDE_ACCOUNTS=(
-  "cubrid|$HOME/.claude-cubrid"
+  "cubrid|$HOME/.claude"
 )
 
 install_claude_settings() {
@@ -215,15 +215,14 @@ except Exception as exc:
 }
 
 # ---------------------------------------------------------------------------
-# Karpathy skills → ~/.claude-cubrid/CLAUDE.md
-# Source: dot_claude/karpathy-skills.md. On the team-shared branch the user-level
-# CLAUDE.md lives in the one environment there is, not in ~/.claude.
+# Karpathy skills → ~/.claude/CLAUDE.md
+# Source: dot_claude/karpathy-skills.md (deployed by chezmoi to ~/.claude/)
 # ---------------------------------------------------------------------------
 install_karpathy_skills() {
   local repo_root
   repo_root="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
   local src="$repo_root/dot_claude/karpathy-skills.md"
-  local dst="$HOME/.claude-cubrid/CLAUDE.md"
+  local dst="$HOME/.claude/CLAUDE.md"
   local marker="# Andrej Karpathy Skills"
 
   if grep -qF "$marker" "$dst" 2>/dev/null; then
@@ -236,7 +235,7 @@ install_karpathy_skills() {
     return
   fi
 
-  mkdir -p "$(dirname "$dst")"
+  mkdir -p "$HOME/.claude"
   echo "" >> "$dst"
   cat "$src" >> "$dst"
   echo ">>> Karpathy skills appended to $dst."
@@ -344,7 +343,7 @@ install_claude_code() {
 # install_claude_settings has seeded those directories.
 # ---------------------------------------------------------------------------
 HERDR_CLAUDE_DIRS=(
-  "$HOME/.claude-cubrid"
+  "$HOME/.claude"
 )
 
 install_herdr() {

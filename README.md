@@ -157,16 +157,24 @@ stripped on deploy, so `bin/executable_connect-vpn.sh` lands as
 ## Claude launchers, and the runtime under them
 
 This is the `team-shared` branch, for the team's shared machine. It keeps a
-single Claude environment, `~/.claude-cubrid`, and no personal accounts.
-`dot_bash_aliases` exports `CLAUDE_CONFIG_DIR` for it, and `clh` / `vclh` start
-Claude Code inside [herdr](https://herdr.dev), the terminal workspace manager
-that replaced tmux here on 2026-09-22.
+single Claude environment, Claude's default `~/.claude` (with `~/.claude.json`),
+and no personal accounts. `clh` / `vclh` start Claude Code inside
+[herdr](https://herdr.dev), the terminal workspace manager that replaced tmux
+here on 2026-09-22.
 
-| Command | What it runs | `CLAUDE_CONFIG_DIR` |
-|---|---|---|
-| `claude` | the binary, in place, no wrapper and no default flags | `~/.claude-cubrid` |
-| `clh` | Claude in a herdr pane, `--dangerously-skip-permissions --effort xhigh` | `~/.claude-cubrid` |
-| `vclh` | the same, with `nvim .` beside Claude | `~/.claude-cubrid` |
+| Command | What it runs |
+|---|---|
+| `claude` | the binary, in place, no wrapper and no default flags |
+| `clh` | Claude in a herdr pane, `--dangerously-skip-permissions --effort xhigh` |
+| `vclh` | the same, with `nvim .` beside Claude |
+
+`CLAUDE_CONFIG_DIR` is deliberately left unset. When it is set, Claude reads
+`.claude.json` from inside that directory; when it is not, from
+`~/.claude.json`. Exporting `CLAUDE_CONFIG_DIR=~/.claude` would therefore split
+the state in two, between shell-started sessions and anything started without
+the shell, such as the VS Code extension. Unset, every tool that defaults to
+`~/.claude` — `install_karpathy_skills`, the scaffold's `install.sh`,
+`claudecode.nvim` — lands in the one environment without being told.
 
 ### Why herdr instead of tmux
 
@@ -196,9 +204,9 @@ dropping an SSH connection no longer stops an agent.
 1. `_herdr_up` starts the background server when the socket is not there.
    `workspace create` needs a server, and the server outlives every client.
 2. `workspace create` — or `tab create`, when a workspace with that label
-   already exists — opens a pane with `--env CLAUDE_CONFIG_DIR=~/.claude-cubrid`.
-   The server is started with every `CLAUDE*` variable stripped, so the pane
-   gets the config dir from this flag rather than by inheritance.
+   already exists — opens a pane. The server is started with every `CLAUDE*`
+   variable stripped, so a pane never inherits a parent session's
+   `CLAUDE_CODE_*` markers or a stray `CLAUDE_CONFIG_DIR`.
 3. `pane run` sends `command claude …` into that pane.
 4. `herdr` attaches.
 
@@ -207,10 +215,10 @@ place instead: herdr blocks nested launches by design, and a pane is already
 persistent.
 
 `install.sh` installs the binary and then runs `herdr integration install
-claude` for `~/.claude-cubrid`. That writes a `SessionStart` hook to
-`~/.claude-cubrid/hooks/herdr-agent-state.sh` and registers it in that
-directory's `settings.json` — additively, so hooks already there stay — which
-is what lets herdr restore Claude sessions across a restart.
+claude` for `~/.claude`. That writes a `SessionStart` hook to
+`~/.claude/hooks/herdr-agent-state.sh` and registers it in that directory's
+`settings.json` — additively, so hooks already there stay — which is what lets
+herdr restore Claude sessions across a restart.
 
 `cl-tabs` / `clc-tabs` still work on whatever tmux sessions are left, but nothing
 in `dot_bash_aliases` starts a tmux session any more.
@@ -273,9 +281,10 @@ implements the same WebSocket protocol. nvim writes a lock file to
 directory — so the directory the lock lands in decides which Claude sessions
 can see this editor.
 
-There is one environment here, `~/.claude-cubrid`. The shell exports it, and
-the config defaults `CLAUDE_CONFIG_DIR` to it as well, for an nvim started
-without going through the shell.
+There is one environment here, and `CLAUDE_CONFIG_DIR` is unset, so the plugin
+and the CLI both fall back to `~/.claude/ide` and find each other. The config
+must not set the variable itself: a Claude started from nvim's terminal would
+inherit it and look for `.claude.json` in the wrong place.
 
 `<leader>ac` opens Claude in a split inside nvim. For the usual layout — Claude
 already running in another herdr pane — run `/ide` there and it will find the
