@@ -498,7 +498,9 @@ install_neovim() {
       install_neovim_tarball
       ;;
     rocky)
-      sudo dnf install -y neovim || install_neovim_tarball
+      # EPEL lags: on Rocky 10 it carries 0.10, which installs cleanly and then
+      # cannot load this config. Go straight to the official build.
+      install_neovim_tarball
       ;;
   esac
 }
@@ -530,7 +532,11 @@ install_direnv() {
   echo ">>> Installing direnv..."
   case "$OS_ID" in
     ubuntu) sudo apt-get install -y direnv ;;
-    rocky)  sudo dnf install -y direnv ;;
+    rocky)
+      # EPEL for Rocky 10 has no direnv package; fall back to the upstream binary.
+      sudo dnf install -y direnv \
+        || curl -sfL https://direnv.net/install.sh | bin_path="$HOME/.local/bin" bash
+      ;;
   esac
 }
 
