@@ -67,7 +67,7 @@ use-cubrid() {
 # --- Claude Code 계정 프로필 전환 (added 2026-06-01, 런타임 tmux → herdr 2026-09-22) ---
 # 기본 계정(개인): ~/.claude          (hyunggyu.ryoo@gmail.com)
 # cubrid 계정(회사): ~/.claude-cubrid  (hgryoo@cubrid.com)
-# 테스트 계정:       ~/.cubrid-cubrid1
+# 팀 계정:           ~/.cubrid-cubrid1   (dev2ai1@cubrid.com)
 #
 # 런타임은 herdr(https://herdr.dev) 다. tmux 와 모델이 다르다:
 #   tmux  — 세션 하나에 claude 하나. 흩어진 세션을 나중에 cl-tabs 로 긁어모았다.
@@ -188,7 +188,7 @@ _claude_run() {
   herdr
 }
 
-# 짧은 진입점: cl → 개인 계정, clc → 회사(cubrid) 계정, clt → 테스트 계정.
+# 짧은 진입점: cl → 개인 계정, clc → 회사(cubrid) 계정, clt → 팀 계정.
 cl() {
   # cl --incognito … → 격리 세션 (아래 _claude_incognito 주석 참고)
   if [ "$1" = "--incognito" ]; then shift; _claude_incognito "$@"; return $?; fi
@@ -197,24 +197,32 @@ cl() {
 clc() { _claude_run "$HOME/.claude-cubrid" --dangerously-skip-permissions --effort xhigh "$@"; }
 clt() { _claude_run "$HOME/.cubrid-cubrid1" --dangerously-skip-permissions --effort xhigh "$@"; }
 
-# `claude` 만 입력하면 개인(cl) / 회사(clc) 중 선택하도록 묻고, 역시 herdr pane 안에서 실행.
+# `claude` 만 입력하면 개인(cl) / 회사(clc) / 팀(clt) 계정과, nvim 을 옆에 띄울지
+# (vcl / vclc / vclt) 를 묻고, 역시 herdr pane 안에서 실행.
 # 단, 계정이 이미 정해진 자리에서는 묻지 않는다: herdr 은 pane 에 CLAUDE_CONFIG_DIR 을
 # 주입하므로, pane 안에서 `claude` 를 부르면 그 pane 의 계정을 그대로 쓴다.
-# 프롬프트 없이 쓰려면 cl / clc / clt.
+# 프롬프트 없이 쓰려면 cl / clc / clt / vcl / vclc / vclt.
 claude() {
   if [ -n "${CLAUDE_CONFIG_DIR:-}" ]; then
-    command claude "$@"
+    command claude --dangerously-skip-permissions --effort xhigh "$@"
     return $?
   fi
-  local sel
+  local sel dir run=_claude_run
   echo "어떤 Claude 계정으로 실행할까요?" >&2
   echo "  1) cl  → 개인 계정 (hyunggyu.ryoo@gmail.com)  [~/.claude]" >&2
   echo "  2) clc → 회사 계정 (hgryoo@cubrid.com)        [~/.claude-cubrid]" >&2
-  read -r -p "선택 [1/2] (기본 1): " sel
+  echo "  3) clt → 팀 계정   (dev2ai1@cubrid.com)       [~/.cubrid-cubrid1]" >&2
+  read -r -p "선택 [1/2/3] (기본 1): " sel
   case "$sel" in
-    2|clc|c) _claude_run "$HOME/.claude-cubrid" "$@" ;;
-    *)       _claude_run "$HOME/.claude"        "$@" ;;
+    2|clc|c) dir="$HOME/.claude-cubrid" ;;
+    3|clt|t) dir="$HOME/.cubrid-cubrid1" ;;
+    *)       dir="$HOME/.claude" ;;
   esac
+  read -r -p "nvim 과 함께 띄울까요? [y/N] (기본 N): " sel
+  case "$sel" in
+    y|Y|yes|v) run=_claude_nvim_run ;;
+  esac
+  "$run" "$dir" --dangerously-skip-permissions --effort xhigh "$@"
 }
 
 # --- incognito 세션 (added 2026-09-18) ---

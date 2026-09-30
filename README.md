@@ -164,7 +164,7 @@ the terminal workspace manager that replaced tmux here on 2026-09-22.
 |---|---|---|
 | `cl` | personal | `~/.claude` |
 | `clc` | cubrid (work) | `~/.claude-cubrid` |
-| `clt` | test | `~/.cubrid-cubrid1` |
+| `clt` | team (`dev2ai1@cubrid.com`) | `~/.cubrid-cubrid1` |
 | `vcl` / `vclc` / `vclt` | the same three, with `nvim .` beside Claude | as above |
 | `cl --incognito` | throwaway, seeded only from the personal login | `~/.claude-incognito/<pid>-<ts>` |
 | `clm` | an isolated extra session on one account, in place | `~/.claude-sessions/<pid>-<ts>` |
@@ -212,7 +212,8 @@ persistent.
 
 Because step 2 injects `CLAUDE_CONFIG_DIR`, the bare `claude` wrapper no longer
 asks which account to use when one is already set — it only prompts from a
-plain shell.
+plain shell. There it asks for the account (`cl` / `clc` / `clt`) and then
+whether to open `nvim .` beside Claude (`vcl` / `vclc` / `vclt`).
 
 `install.sh` installs the binary and then runs `herdr integration install
 claude` once per account directory. That writes a `SessionStart` hook to
