@@ -24,6 +24,11 @@
 #        moved fstrim → Wednesday 03:00, no catch-up at boot
 #   5. /data/cores, /data/history (the Claude change log) and /data/users
 #      (one folder per team member; everyone logs in as the shared account).
+#   6. cgroup delegation for rootless podman: the user slice gets the cpuset
+#      controller (plus cpu io memory pids), so --cpuset-cpus pins a container
+#      to a CCD. Without it podman says the controller is not available.
+#      Takes effect at the next start of user@<uid>.service (re-login), and is
+#      switched on for the running session as well so nothing has to restart.
 #
 # Run it as the normal user, not with sudo; it calls sudo for the system parts.
 #
@@ -132,6 +137,25 @@ say "5. /data/history, /data/users"
 sudo install -d -m 0755 -o "$ME" -g "$ME" /data/history /data/users
 
 # ---------------------------------------------------------------------------
+say "6. cgroup delegation for rootless podman (cpuset)"
+# ---------------------------------------------------------------------------
+sudo install -d /etc/systemd/system/user@.service.d
+sudo tee /etc/systemd/system/user@.service.d/delegate.conf >/dev/null <<'EOF'
+# Written by ~/dotfiles/scripts/setup_test_host.sh
+[Service]
+Delegate=cpu cpuset io memory pids
+EOF
+sudo systemctl daemon-reload
+# The drop-in applies when user@<uid>.service next starts. Enable cpuset for the
+# running session too, from the root down to the user manager, so a re-login is
+# not needed today.
+UID_=$(id -u)
+for cg in /sys/fs/cgroup /sys/fs/cgroup/user.slice /sys/fs/cgroup/user.slice/user-$UID_.slice \
+          /sys/fs/cgroup/user.slice/user-$UID_.slice/user@$UID_.service; do
+  grep -qw cpuset "$cg/cgroup.subtree_control" 2>/dev/null || echo +cpuset | sudo tee "$cg/cgroup.subtree_control" >/dev/null
+done
+
+# ---------------------------------------------------------------------------
 say "Result"
 # ---------------------------------------------------------------------------
 printf '%-11s %s\n' \
@@ -146,3 +170,4 @@ printf '%-11s %s\n' \
   timers-off "$(systemctl is-enabled dnf-makecache.timer plocate-updatedb.timer raid-check.timer | paste -sd' ')" \
   fstrim     "$(systemctl show fstrim.timer -p NextElapseUSecRealtime --value)" \
   nofile     "log in again (or reboot) to get soft 65536"
+printf '%-11s %s\n' cgroup "user@$(id -u): $(cat /sys/fs/cgroup/user.slice/user-$(id -u).slice/user@$(id -u).service/cgroup.controllers)"
