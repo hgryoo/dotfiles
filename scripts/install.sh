@@ -390,6 +390,70 @@ install_herdr() {
       || echo "WARNING: herdr claude integration failed for $dir" >&2
   done
 }
+
+# ---------------------------------------------------------------------------
+# Teams bot: Teams CLI + devtunnel + Hermes
+# The three tools the tool-teams-bot skill (hgryoo/scaffold) wires together:
+# Hermes answers, the Teams CLI registers the bot, and a named devtunnel gives
+# Hermes' local gateway (port 3978) the public HTTPS endpoint Teams posts to.
+# Only the binaries here — logins, the tunnel and the bot are per-machine and
+# interactive, so the skill does those.
+# ---------------------------------------------------------------------------
+install_teams_cli() {
+  if command -v teams &>/dev/null; then
+    echo ">>> Teams CLI already installed ($(teams --version 2>/dev/null | head -n1)), skipping."
+    return
+  fi
+  if ! command -v npm &>/dev/null; then
+    echo "WARNING: npm not found, cannot install the Teams CLI." >&2
+    return
+  fi
+  # Not in NPM_GLOBALS: its `npm ls -g <pkg>` check never matches a dist-tag
+  # spec, so the loop would reinstall it on every run. @preview is the line
+  # the skill was verified on; @latest is still 3.0.x.
+  echo ">>> Installing Teams CLI..."
+  npm install -g @microsoft/teams.cli@preview || echo "!!! Teams CLI install failed — install by hand." >&2
+}
+
+install_devtunnel() {
+  if command -v devtunnel &>/dev/null || [ -x "$HOME/bin/devtunnel" ]; then
+    echo ">>> devtunnel already installed, skipping."
+    return
+  fi
+  # The official installer (aka.ms/DevTunnelCliInstall) downloads this same
+  # binary into ~/bin, but it also appends a PATH line to ~/.zshrc or
+  # ~/.bashrc (chezmoi-managed) and installs libsecret with apt only.
+  local arch
+  case "$(uname -m)" in
+    x86_64)        arch=x64 ;;
+    aarch64|arm64) arch=arm64 ;;
+    *) echo "!!! devtunnel: unsupported architecture $(uname -m)" >&2; return ;;
+  esac
+  echo ">>> Installing devtunnel..."
+  mkdir -p "$HOME/bin"
+  curl -fsSL -o "$HOME/bin/devtunnel" "https://tunnelsassetsprod.blob.core.windows.net/cli/linux-$arch-devtunnel" \
+    || { echo "!!! devtunnel download failed." >&2; rm -f "$HOME/bin/devtunnel"; return; }
+  chmod +x "$HOME/bin/devtunnel"
+  case "$OS_ID" in
+    ubuntu) sudo DEBIAN_FRONTEND=noninteractive apt-get install -y libsecret-1-0 ;;
+    rocky)  sudo dnf install -y libsecret ;;
+  esac
+}
+
+install_hermes() {
+  if command -v hermes &>/dev/null || [ -x "$HOME/.local/bin/hermes" ]; then
+    echo ">>> Hermes already installed, skipping ('hermes update' moves it forward)."
+    return
+  fi
+  # --non-interactive skips the setup wizard and the gateway service install:
+  # the model key and the Teams credentials are per-machine. The installer
+  # also appends a guarded ~/.local/bin PATH line to whichever of ~/.bashrc,
+  # ~/.profile, ~/.bash_profile lacks one.
+  echo ">>> Installing Hermes Agent..."
+  curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --non-interactive \
+    || echo "!!! Hermes install failed — see ~/.hermes/logs/install.log." >&2
+  export PATH="$HOME/.local/bin:$PATH"
+}
 # ---------------------------------------------------------------------------
 # uv (Python package/project manager — replaces pyenv)
 # ---------------------------------------------------------------------------
@@ -1139,6 +1203,9 @@ print_summary() {
   command -v cubrid-jira-fetch &>/dev/null && echo "jira-fetch: installed"                                || echo "jira-fetch: not found"
   command -v claude &>/dev/null && echo "claude : $(claude --version | head -n1)" || echo "claude : not found"
   command -v herdr  &>/dev/null && echo "herdr  : $(herdr --version 2>/dev/null | head -n1)"       || echo "herdr  : not found"
+  command -v teams  &>/dev/null && echo "teams  : $(teams --version 2>/dev/null | head -n1)"       || echo "teams  : not found"
+  [ -x "$HOME/bin/devtunnel" ] || command -v devtunnel &>/dev/null && echo "devtunnel: installed"   || echo "devtunnel: not found"
+  [ -x "$HOME/.local/bin/hermes" ] || command -v hermes &>/dev/null && echo "hermes : installed"   || echo "hermes : not found"
   check_claude_accounts
   command -v omc    &>/dev/null && echo "omc    : $(omc --version 2>/dev/null || echo 'installed')" || echo "omc    : not found"
   command -v code-review-graph &>/dev/null && echo "code-review-graph: $(code-review-graph --version 2>/dev/null | head -n1 || echo installed)" || echo "code-review-graph: not found"
@@ -1195,6 +1262,9 @@ main() {
   sync_claude_skills
   install_claude_code
   install_herdr
+  install_teams_cli
+  install_devtunnel
+  install_hermes
   install_code_review_graph
   install_token_savior
 

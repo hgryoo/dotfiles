@@ -350,6 +350,9 @@ for .cpp, google-java-format for .java), so nothing formats on save and
 | [Claude Code](https://claude.ai) | curl installer |
 | [herdr](https://herdr.dev) (runtime for `cl` / `clc`) | curl installer + `herdr integration install claude` per account |
 | oh-my-claudecode (omc) | npm |
+| [Teams CLI](https://www.npmjs.com/package/@microsoft/teams.cli) (`@preview`, for the `tool-teams-bot` skill) | npm |
+| [devtunnel](https://learn.microsoft.com/azure/developer/dev-tunnels/) (for `tool-teams-bot`) | release binary → `~/bin` + libsecret |
+| [Hermes Agent](https://hermes-agent.nousresearch.com) (for `tool-teams-bot`) | curl installer `--non-interactive` (no setup wizard, no gateway service) |
 
 ### CUBRID tools (`cubrid/tools/`, git submodules)
 
