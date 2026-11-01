@@ -125,8 +125,10 @@ See `ops/README.md` for the table and the fresh-machine order.
 ## `~/bin` Scripts
 
 chezmoi copies `bin/` to `~/bin` (already on `PATH` via `.bashrc`).
-`install.sh` then adds the extensionless name each one is actually typed with —
-`cl-tabs`, not `cl-tabs.sh`.
+`run_onchange_after_bin-aliases.sh.tmpl` then adds the extensionless name each
+one is actually typed with — `cl-tabs`, not `cl-tabs.sh`. It re-runs on
+`chezmoi apply` whenever the file list of `bin/` changes, so a script added
+there gets its name without running `install.sh`.
 
 The source files carry chezmoi's `executable_` prefix, which is how chezmoi
 decides the deployed mode — it reads the prefix, not the file's mode on disk.

@@ -1065,36 +1065,20 @@ YACC
 }
 
 # ---------------------------------------------------------------------------
-# ~/bin — extensionless aliases
-# chezmoi already deploys bin/ to ~/bin as real files, so nothing here installs
-# the scripts themselves. It only adds the names they are actually typed with:
-# `cl-tabs`, not `cl-tabs.sh`. Anything already sitting at the alias name is
-# left alone.
+# ~/bin — links to installed packages
+# The extensionless script names (`cl-tabs`, not `cl-tabs.sh`) are not made
+# here: run_onchange_after_bin-aliases.sh.tmpl makes them on `chezmoi apply`,
+# the only step a machine that just pulls the dotfiles runs. This keeps only
+# the links that point at something a package above installed.
 # ---------------------------------------------------------------------------
 install_local_bin() {
   [ -d "$HOME/bin" ] || { echo ">>> ~/bin missing (run chezmoi apply first), skipping."; return; }
-  echo ">>> Adding extensionless aliases in ~/bin..."
-  local f base alias_name
-  for f in "$HOME"/bin/*.sh; do
-    [ -f "$f" ] || continue
-    chmod +x "$f"
-    base="$(basename "$f")"
-    alias_name="${base%.sh}"
-    if [ -e "$HOME/bin/$alias_name" ]; then
-      continue
-    fi
-    ln -s "$base" "$HOME/bin/$alias_name"
-    echo "    - $alias_name -> $base"
-  done
-  # cl-tabs also answers to clc-tabs (the claude-cubrid config dir variant).
-  [ -f "$HOME/bin/cl-tabs.sh" ] && [ ! -e "$HOME/bin/clc-tabs" ] \
-    && ln -s cl-tabs.sh "$HOME/bin/clc-tabs"
 
   # Ubuntu ships fd-find as `fdfind` — the binary name `fd` belongs to another
   # package. Every tool that looks for a fast finder, nvim's picker included,
   # looks for `fd`.
   if ! command -v fd >/dev/null 2>&1 && command -v fdfind >/dev/null 2>&1; then
-    ln -sfn "$(command -v fdfind)" "$HOME/bin/fd" && echo "    - fd -> fdfind"
+    ln -sfn "$(command -v fdfind)" "$HOME/bin/fd" && echo ">>> ~/bin/fd -> fdfind"
   fi
   return 0
 }
